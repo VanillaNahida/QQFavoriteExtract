@@ -62,7 +62,7 @@ def get_numeric_subdirectories(parent_dir):
 
 def choose_directory(numeric_subdirs):
     if not numeric_subdirs:
-        print("没有找到QQ账号数据相关文件夹")
+        print("没有找到QQ账号数据相关文件夹，可能是你未登录QQ帐号，请尝试登录QQ后重试！")
         return None
     
     print("请选择你的QQ账号数据文件夹：")
@@ -95,7 +95,7 @@ def select_userdata_dir_main(qq_userdata_dir):
             # 返回绝对路径
             return selected_dir_path
     else:
-        print("没有找到以数字命名的文件夹。")
+        print("没有找到QQ帐号用户数据文件夹！")
 
 def set_emoction_save_path():
     '''让用户选择要保存表情包的位置'''
