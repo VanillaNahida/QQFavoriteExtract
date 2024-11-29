@@ -102,6 +102,7 @@ def set_emoction_save_path():
     print("请在弹出的窗口中选择要保存表情包的位置")
     root = tk.Tk()
     root.withdraw()
+    root.attributes('-topmost', True)
     file_path = filedialog.askdirectory(
         title="请选择要保存表情包的位置"
     )
