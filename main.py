@@ -25,6 +25,9 @@ def get_userdata_save_path():
     # 读取 INI 文件
     try:
         config.read(ini_file_path, encoding='utf-8')
+    except UnicodeDecodeError:
+        print("UTF-8解码QQ配置文件出错！正在尝试以GBK编码打开文件……")
+        config.read(ini_file_path, encoding='gbk')
     except FileNotFoundError:
         print(f"错误: 未找到QQ配置文件“{ini_file_path}”\n可能原因是你未安装QQ或未登录QQ")
         return None
