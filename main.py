@@ -1,11 +1,13 @@
 # coding=utf-8
 # @Author：香草味的纳西妲
 # Email：nahida1027@126.com
-# Date：2024/11/27
+# Date：2024/12/19
 
 import os
 import sys
 import shutil
+import struct
+import mimetypes
 import subprocess
 import configparser
 from tqdm import tqdm
@@ -24,6 +26,7 @@ def get_userdata_save_path():
     
     # 读取 INI 文件
     try:
+        print("开始使用UTF-8读取QQ配置文件")
         config.read(ini_file_path, encoding='utf-8')
     except UnicodeDecodeError:
         print("UTF-8解码QQ配置文件出错！正在尝试以GBK编码打开文件……")
@@ -151,14 +154,107 @@ def copy_directory_with_progress(src, dst):
                     # 更新进度条
                     pbar.update(1)
 
-        print("复制文件完成！正在打开输出文件夹……")
-        try:
-            subprocess.Popen(['explorer', os.path.abspath(dst)])
-        except Exception as e:
-            print(f"无法打开资源管理器: {e}")
+        # print("复制文件完成！正在打开输出文件夹……")
+        # try:
+        #     subprocess.Popen(['explorer', os.path.abspath(dst)])
+        # except Exception as e:
+        #     print(f"无法打开资源管理器: {e}")
 
     except Exception as e:
         print(f"错误: {e}")
+
+# 定义常见的图片格式及其文件头（魔数）
+FILE_SIGNATURES = {
+    'jpg': (b'\xff\xd8\xff', b'\xff\xd8\xff\xe0', b'\xff\xd8\xff\xe1'),
+    'png': (b'\x89PNG\r\n\x1a\n',),
+    'gif': (b'GIF87a', b'GIF89a'),
+    'bmp': (b'BM',),
+    'tiff': (b'II*\x00', b'MM\x00*'),
+    'webp': (b'RIFF', b'WEBP'),
+    'ico': (b'\x00\x00\x01\x00', b'\x00\x00\x02\x00'),
+    'psd': (b'8BPS',),
+    'svg': (b'<?xml', b'<svg'),
+    'heic': (b'ftypheic', b'ftypheix', b'ftyphevc', b'ftyphevx'),
+    'avif': (b'ftypavif', b'ftypavis'),
+}
+
+# 映射文件扩展名到 MIME 类型
+MIME_MAPPING = {
+    'jpg': 'image/jpeg',
+    'png': 'image/png',
+    'gif': 'image/gif',
+    'bmp': 'image/bmp',
+    'tiff': 'image/tiff',
+    'webp': 'image/webp',
+    'ico': 'image/x-icon',
+    'psd': 'image/vnd.adobe.photoshop',
+    'svg': 'image/svg+xml',
+    'heic': 'image/heic',
+    'avif': 'image/avif',
+}
+
+def get_actual_extension(file_path):
+    """
+    读取文件头并返回实际的文件扩展名
+    """
+    with open(file_path, 'rb') as f:
+        header = f.read(16)  # 读取前16个字节
+
+    for ext, signatures in FILE_SIGNATURES.items():
+        for sig in signatures:
+            if header.startswith(sig):
+                return ext
+    return None  # 如果未匹配到任何已知类型
+
+def get_recommended_extension(file_path):
+    """
+    使用 mimetypes 获取推荐的文件扩展名
+    """
+    mime_type, _ = mimetypes.guess_type(file_path)
+    if mime_type:
+        for ext, mt in MIME_MAPPING.items():
+            if mt == mime_type:
+                return ext
+    return None
+
+def correct_file_extension(file_path):
+    """
+    纠正文件的扩展名
+    """
+    actual_ext = get_actual_extension(file_path)
+    if not actual_ext:
+        print(f"未识别的文件类型: {file_path}")
+        return
+
+    recommended_ext = get_recommended_extension(file_path)
+    if recommended_ext:
+        if actual_ext.lower() != recommended_ext.lower():
+            # 去除现有扩展名
+            base_name, _ = os.path.splitext(file_path)
+            # 添加正确的扩展名
+            new_file_path = f"{base_name}.{actual_ext}"
+            if os.path.exists(new_file_path):
+                print(f"目标文件已存在，跳过: {new_file_path}")
+                return
+            try:
+                os.rename(file_path, new_file_path)
+                print(f"已重命名: {file_path} -> {new_file_path}")
+            except Exception as e:
+                print(f"重命名失败: {file_path}. 错误: {e}")
+    else:
+        print(f"无法确定推荐扩展名: {file_path}")
+
+def batch_correct_extensions(directory):
+    """
+    批量纠正指定目录下的文件扩展名
+    """
+    for root, dirs, files in os.walk(directory):
+        for file in files:
+            file_path = os.path.join(root, file)
+            # 仅处理图片文件
+            mime_type, _ = mimetypes.guess_type(file_path)
+            if mime_type and mime_type.startswith('image/'):
+                correct_file_extension(file_path)
 
 # 主函数
 def main():
@@ -174,6 +270,14 @@ def main():
     sleep(0.5)
     print("开始复制文件……")
     copy_directory_with_progress(emoji_path, save_path)
+    print("复制完成！开始重命名文件……")
+    sleep(0.5)
+    batch_correct_extensions(save_path)
+    print("复制文件完成！正在打开输出文件夹……")
+    try:
+        subprocess.Popen(['explorer', os.path.abspath(save_path)])
+    except Exception as e:
+        print(f"无法打开资源管理器: {e}")
 
 if __name__ == "__main__":
     main()
