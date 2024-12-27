@@ -20,22 +20,22 @@
 # 使用方法  
 
 1. 请前往[GitHub Release](https://github.com/NyaOH-Nahida/QQFavoriteExtract/releases/download/v1.1/QQFavoriteExtract_nuitka.exe)下载exe文件
-    > [!NOTE]
-    > 如果你的网络环境较差，无法连接到 Github，可以使用 [GitHub Proxy](https://mirror.ghproxy.com/) 提供的文件代理加速下载服务
-    > 或者您可以前往 [Gitee Release](https://gitee.com/NyaOH/QQFavoriteExtract/releases/download/v1.1/QQ%E8%A1%A8%E6%83%85%E5%8C%85%E6%89%B9%E9%87%8F%E6%8F%90%E5%8F%96%E5%B7%A5%E5%85%B7_V1.1.exe) 下载exe文件（推荐）
+  > [!NOTE]
+  > 如果你的网络环境较差，无法连接到 Github，可以使用 [GitHub Proxy](https://mirror.ghproxy.com/) 提供的文件代理加速下载服务
+  > 或者您可以前往 [Gitee Release](https://gitee.com/NyaOH/QQFavoriteExtract/releases/download/v1.1/QQ%E8%A1%A8%E6%83%85%E5%8C%85%E6%89%B9%E9%87%8F%E6%8F%90%E5%8F%96%E5%B7%A5%E5%85%B7_V1.1.exe) 下载exe文件（推荐）
 
 2. 下载好后，推荐先打开要提取表情包的QQ账号，随便打开一个聊天页面，刷新表情
 
-   > [!WARNING]
-   >
-   > 请务必将你的收藏表情包界面**翻到底**，而不是**只打开页面！**必须让所有表情包图片**完全加载**出来再使用本程序，否则程序提取出来的表情包将会是**不完整**的。
-
-   ![](./img/1.png)
-
-    > [!NOTE]
-    > 经过作者测试，QQ在删除收藏表情包后**并不会**将已缓存到本地的表情包一并删除，
-    > 所以程序**可能**会提取到账号收藏夹里并不存在的表情包，这是正常的。
-    > 后续可能会在程序里添加**一键清除表情包**的功能来避免提取到无关的表情包。
+  > [!WARNING]
+  >
+  > 请务必将你的收藏表情包界面**翻到底**，而不是**只打开页面！**必须让所有表情包图片**完全加载**出来再使用本程序，否则程序提取出来的表情包将会是**不完整**的。
+  
+  ![](./img/1.png)
+  
+   > [!NOTE]
+   > 经过作者测试，QQ在删除收藏表情包后**并不会**将已缓存到本地的表情包一并删除，
+   > 所以程序**可能**会提取到账号收藏夹里并不存在的表情包，这是正常的。
+   > 后续可能会在程序里添加**一键清除表情包**的功能来避免提取到无关的表情包。
 
 3. 双击运行程序，按照提示选择对应账号和保存位置即可
 
