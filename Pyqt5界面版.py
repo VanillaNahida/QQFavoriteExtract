@@ -9,6 +9,9 @@ from tqdm import tqdm
 from time import sleep
 from pathlib import Path
 from PyQt5 import QtWidgets, QtGui, QtCore
+from PyQt5.QtGui import QIcon
+
+icon = os.path.dirname(os.path.abspath(__file__))
 
 class QQNTEmojiExporter(QtWidgets.QWidget):
     def __init__(self):
@@ -259,6 +262,7 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
 def main():
     app = QtWidgets.QApplication(sys.argv)
     ex = QQNTEmojiExporter()
+    app.setWindowIcon(QIcon(os.path.join(icon,"icon.ico")))
     ex.show()
     sys.exit(app.exec_())
 
