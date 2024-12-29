@@ -26,18 +26,22 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
 
         save_path_layout = QtWidgets.QHBoxLayout()
         self.savePathEdit = QtWidgets.QLineEdit()
+        self.set_font(self.savePathEdit)
         self.selectDirButton = QtWidgets.QPushButton('浏览')
+        self.set_font(self.selectDirButton)
         self.selectDirButton.clicked.connect(self.selectSavePath)
         save_path_layout.addWidget(self.savePathEdit)
         save_path_layout.addWidget(self.selectDirButton)
         form_layout.addRow('保存路径:', save_path_layout)
 
         self.userComboBox = QtWidgets.QComboBox()
+        self.set_font(self.userComboBox)
         form_layout.addRow('选择用户:', self.userComboBox)
 
         layout.addLayout(form_layout)
 
         self.startButton = QtWidgets.QPushButton('开始导出')
+        self.set_font(self.startButton)
         self.startButton.clicked.connect(self.startExport)
         layout.addWidget(self.startButton)
 
@@ -46,12 +50,17 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
         layout.addWidget(self.progressBar)
 
         self.statusLabel = QtWidgets.QLabel('')
+        self.set_font(self.statusLabel)
         self.statusLabel.setStyleSheet("QLabel {font-size: 16px;}")
         layout.addWidget(self.statusLabel)
 
         self.setLayout(layout)
 
         self.populateUserComboBox()
+        
+    def set_font(self, widget):
+        font = QtGui.QFont("SimHei", 11)  # 使用系统自带的黑体字体
+        widget.setFont(font)
 
     def selectSavePath(self):
         options = QtWidgets.QFileDialog.Options()
