@@ -19,10 +19,10 @@
 
 # 使用方法  
 
-1. 请前往[GitHub Release](https://github.com/NyaOH-Nahida/QQFavoriteExtract/releases/download/v1.1/QQFavoriteExtract_nuitka.exe)下载exe文件
+1. 请前往[GitHub Release](https://github.com/NyaOH-Nahida/QQFavoriteExtract/releases)下载exe文件
   > [!NOTE]
   > 如果你的网络环境较差，无法连接到 Github，可以使用 [GitHub Proxy](https://mirror.ghproxy.com/) 提供的文件代理加速下载服务
-  > 或者您可以前往 [Gitee Release](https://gitee.com/NyaOH/QQFavoriteExtract/releases/download/v1.1/QQ%E8%A1%A8%E6%83%85%E5%8C%85%E6%89%B9%E9%87%8F%E6%8F%90%E5%8F%96%E5%B7%A5%E5%85%B7_V1.1.exe) 下载exe文件（推荐）
+  > 或者您可以前往 [Gitee Release](https://gitee.com/NyaOH/QQFavoriteExtract/releases) 下载exe文件（推荐）
 
 2. 下载好后，推荐先打开要提取表情包的QQ账号，随便打开一个聊天页面，刷新表情
 
