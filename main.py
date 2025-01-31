@@ -1,14 +1,13 @@
 # coding=utf-8
 # @Author：香草味的纳西妲
 # Email：nahida1027@126.com
-# Date：2024/12/19
+# Date：2025/02/01
 
 import os
 import sys
 import shutil
 import struct
-import mimetypes
-import subprocess
+import chardet
 import configparser
 from tqdm import tqdm
 from time import sleep
@@ -16,21 +15,82 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import filedialog
 
+def read_file_with_correct_encoding(file_path, target_string):
+    print("正在判断QQ配置文件编码类型")
+    try:
+        with open(file_path, 'rb') as f:
+            data = f.read()
+    except Exception as e:
+        print(f"文件读取失败: {e}")
+        return False
+
+    # ------------------------- 编码检测优化 -------------------------
+    # 1. 优先尝试中文相关编码（GB18030覆盖GBK，兼容性更好）
+    priority_encodings = ['gb18030', 'utf-8', 'utf-16', 'ascii']
+    
+    # 2. 使用cchardet检测（比chardet更快更准）
+    try:
+        detected = chardet.detect(data)
+        if detected['encoding']:
+            # 如果检测到的是非中文编码且置信度低，将其后置
+            if detected['confidence'] < 0.7 or detected['encoding'].lower() not in ['gb18030', 'gbk', 'utf-8']:
+                priority_encodings.append(detected['encoding'])
+            else:
+                priority_encodings.insert(0, detected['encoding'])  # 高置信度中文编码前置
+    except:
+        pass
+    
+    # 3. 补充其他可能编码并去重
+    encodings = priority_encodings + [
+        'gbk', 'big5', 'utf-16-le', 'utf-16-be', 'shift_jis',
+        'iso-8859-1', 'latin-1', 'cp936', 'cp950', 'utf-7'
+    ]
+    seen = set()
+    ordered_encodings = []
+    for enc in encodings:
+        enc_lower = enc.lower()
+        if enc_lower not in seen:
+            seen.add(enc_lower)
+            ordered_encodings.append(enc)
+    
+    # ------------------------- 解码验证优化 -------------------------
+    for enc in ordered_encodings:
+        try:
+            content = data.decode(enc, errors='strict')  # 严格模式避免静默错误
+        except (UnicodeDecodeError, LookupError):
+            continue
+        # 改进验证：检查目标字符串且无异常字符（如乱码）
+        if target_string in content and is_content_valid(content):
+            print(f"成功解码！ | 检测到的编码类型为: {enc.ljust(12)}")
+            return enc.ljust(12)
+    print("解码失败，未找到匹配编码。")
+    return None
+
+def is_content_valid(content, min_chinese=1):
+    # 验证内容是否包含至少一个中文字符（避免误判为拉丁编码）
+    chinese_chars = sum('\u4e00' <= char <= '\u9fff' for char in content)
+    return chinese_chars >= min_chinese
+
 def get_userdata_save_path():
     '''获取用户数据目录存储所在位置'''
     # 指定 INI 文件的路径
     ini_file_path = r'C:\Users\Public\Documents\Tencent\QQ\UserDataInfo.ini'
     
+    target_string = '[UserDataSet]'
+    # 判断编码类型
+    encode = read_file_with_correct_encoding(ini_file_path, target_string)
+
     # 创建 ConfigParser 对象
     config = configparser.ConfigParser()
     
     # 读取 INI 文件
     try:
-        print("开始使用UTF-8读取QQ配置文件")
-        config.read(ini_file_path, encoding='utf-8')
-    except UnicodeDecodeError:
-        print("UTF-8解码QQ配置文件出错！正在尝试以GBK编码打开文件……")
-        config.read(ini_file_path, encoding='gbk')
+        print(f"开始使用{encode}读取QQ配置文件")
+        config.read(ini_file_path, encoding = encode)
+    except UnicodeDecodeError as e:
+        print(f"{encode}解码QQ配置文件出错，请将下方报错信息丢给开发者！\n{e}")
+        print("无法打开QQ配置文件，程序退出！")
+        exit()
     except FileNotFoundError:
         print(f"错误: 未找到QQ配置文件“{ini_file_path}”\n可能原因是你未安装QQ或未登录QQ")
         return None
