@@ -2,6 +2,7 @@ import os
 import sys
 import shutil
 import struct
+import chardet
 import mimetypes
 import subprocess
 import configparser
@@ -21,8 +22,9 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
         self.initUI()
 
     def initUI(self):
-        self.setGeometry(300, 300, 590, 350)
-        self.setWindowTitle('QQNT表情批量导出')
+        # self.setGeometry(300, 300, 590, 600)  # 增加窗口高度以适应新的控件
+        self.setFixedSize(800, 600)  # 固定窗口大小为 800x600
+        self.setWindowTitle('QQNT表情批量导出 GUI版')
 
         layout = QtWidgets.QVBoxLayout()
         form_layout = QtWidgets.QFormLayout()
@@ -30,17 +32,23 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
         save_path_layout = QtWidgets.QHBoxLayout()
         self.savePathEdit = QtWidgets.QLineEdit()
         self.set_font(self.savePathEdit)
-        self.selectDirButton = QtWidgets.QPushButton('浏览')
+        self.selectDirButton = QtWidgets.QPushButton('浏览文件夹')
         self.set_font(self.selectDirButton)
         self.selectDirButton.clicked.connect(self.selectSavePath)
         save_path_layout.addWidget(self.savePathEdit)
         save_path_layout.addWidget(self.selectDirButton)
-        form_layout.addRow('保存路径:', save_path_layout)
-
+        # form_layout.addRow('保存路径:', save_path_layout)
+        save_path_label = QtWidgets.QLabel('保存路径:')
+        save_path_label.setFont(QtGui.QFont("SimHei", 11, QtGui.QFont.Bold))  # 设置字体为黑体，字号11，加粗
+        form_layout.addRow(save_path_label, save_path_layout)
+        #
         self.userComboBox = QtWidgets.QComboBox()
         self.set_font(self.userComboBox)
-        form_layout.addRow('选择用户:', self.userComboBox)
-
+        # form_layout.addRow('选择用户:', self.userComboBox)
+        user_label = QtWidgets.QLabel('选择用户:')
+        user_label.setFont(QtGui.QFont("SimHei", 11, QtGui.QFont.Bold))  # 设置字体为黑体，字号11，加粗
+        form_layout.addRow(user_label, self.userComboBox)
+        #
         layout.addLayout(form_layout)
 
         self.startButton = QtWidgets.QPushButton('开始导出')
@@ -49,28 +57,52 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
         layout.addWidget(self.startButton)
 
         self.progressBar = QtWidgets.QProgressBar()
-        self.progressBar.setStyleSheet("QProgressBar {border: 2px solid grey; border-radius: 5px; text-align: center; } QProgressBar::chunk {background-color: #05B8CC; width: 20px; }")
+        self.progressBar.setStyleSheet("""
+            QProgressBar {
+                border: 2px solid grey;
+                border-radius: 5px;
+                text-align: center;
+            }
+            QProgressBar::chunk {
+                background-color: #05B8CC;
+                width: 20px;
+            }
+        """)
         layout.addWidget(self.progressBar)
 
+        # 添加只读的文本编辑框用于日志输出
+        self.logTextEdit = QtWidgets.QTextEdit()
+        self.logTextEdit.setReadOnly(True)
+        self.logTextEdit.setStyleSheet("""
+            QTextEdit {
+                font-family: SimHei;
+                font-size: 20px;
+                background-color: #f0f0f0;
+            }
+        """)
+        layout.addWidget(self.logTextEdit)
+
+        # 添加状态标签
         self.statusLabel = QtWidgets.QLabel('')
         self.set_font(self.statusLabel)
-        self.statusLabel.setStyleSheet("QLabel {font-size: 16px;}")
+        self.statusLabel.setStyleSheet("QLabel {font-size: 20px;}")
         layout.addWidget(self.statusLabel)
 
         self.setLayout(layout)
 
         self.populateUserComboBox()
-        
+
     def set_font(self, widget):
         font = QtGui.QFont("SimHei", 11)  # 使用系统自带的黑体字体
         widget.setFont(font)
 
     def selectSavePath(self):
         options = QtWidgets.QFileDialog.Options()
-        directory = QtWidgets.QFileDialog.getExistingDirectory(self, "选择保存路径", options=options)
+        directory = QtWidgets.QFileDialog.getExistingDirectory(self, "💬 请选择表情包保存路径", options=options)
         if directory:
             self.savePathEdit.setText(directory)
             self.savePath = directory
+            self.log(f"✅ 已将保存路径设置为: {directory}")
 
     def populateUserComboBox(self):
         configPath = self.default_ini_path
@@ -82,56 +114,62 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
                     for subdir in numeric_subdirs:
                         self.userComboBox.addItem(subdir)
                 else:
-                    self.statusLabel.setText("未找到任何用户目录")
+                    self.log("❌ 未找到任何用户目录")
             else:
-                self.statusLabel.setText("读取配置文件失败")
+                self.log("❌ 读取配置文件失败")
         else:
-            self.statusLabel.setText("未找到配置文件")
+            self.log("❌ 未找到配置文件")
 
     def startExport(self):
         if not self.savePath:
-            self.statusLabel.setText("请先选择保存路径")
+            self.log("❌ 请先选择保存路径！")
             return
 
         selected_user = self.userComboBox.currentText()
         if not selected_user:
-            self.statusLabel.setText("请选择用户")
+            self.log("❌ 请先选择一个用户！")
             return
 
         configPath = self.default_ini_path
         if not os.path.exists(configPath):
-            self.statusLabel.setText("未找到配置文件，请手动选择")
-            configPath, _ = QtWidgets.QFileDialog.getOpenFileName(self, "选择配置文件", "", "INI Files (*.ini);;All Files (*)")
+            self.log("❌ 未找到配置文件，请手动选择！")
+            configPath, _ = QtWidgets.QFileDialog.getOpenFileName(self, "💬 选择配置文件", "", "INI Files (*.ini);;All Files (*)")
             if not configPath:
-                self.statusLabel.setText("请先选择配置文件")
+                self.log("💬 请先选择配置文件！")
                 return
 
-        self.statusLabel.setText("正在读取配置文件")
+        self.log("💬 正在读取配置文件……")
         userdata_save_path = self.get_userdata_save_path(configPath)
         if userdata_save_path:
             file_path = Path(os.path.join(userdata_save_path, selected_user))
             emoji_path = file_path / "nt_qq" / "nt_data" / "Emoji" / "personal_emoji" / "Ori"
-            self.statusLabel.setText(f"复制表情包文件到: {self.savePath}/提取的表情")
+            self.log(f"✅ 复制表情包文件到: {self.savePath}/提取的表情")
             self.copy_directory_with_progress(str(emoji_path), self.savePath + "/提取的表情")
-            self.statusLabel.setText("复制完成！开始重命名文件")
+            self.log("✅ 复制完成！开始重命名文件")
             self.batch_correct_extensions(self.savePath + "/提取的表情")
-            self.statusLabel.setText("完成！正在打开输出文件夹")
+            self.log("✅ 完成！正在打开输出文件夹……")
             try:
                 subprocess.Popen(['explorer', os.path.abspath(self.savePath + "/提取的表情")])
             except Exception as e:
-                self.statusLabel.setText(f"无法打开资源管理器: {e}")
+                self.log(f"❌ 无法打开资源管理器: {e}")
         else:
-            self.statusLabel.setText("读取配置文件失败")
+            self.log("❌ 读取配置文件失败")
 
     def get_userdata_save_path(self, ini_file_path):
+        self.log("💬 QQ表情包批量提取工具 GUI版 V1.1 Build：2025/2/1")
         config = configparser.ConfigParser()
+        target_string = '[UserDataSet]'
         try:
-            config.read(ini_file_path, encoding='utf-8')
+            self.log(f"💬 开始检测QQ配置文件编码类型……")
+            encode = self.read_file_with_correct_encoding(ini_file_path, target_string)
+            config.read(ini_file_path, encoding=encode)
         except UnicodeDecodeError:
-            config.read(ini_file_path, encoding='gbk')
+            self.log(f"❌ {encode} 解码QQ配置文件出错，请将下方报错信息丢给开发者！")
+            return None
         except FileNotFoundError:
             return None
         except configparser.Error as e:
+            self.log(f"❌ 配置文件解析错误: {e}")
             return None
 
         if 'UserDataSet' not in config:
@@ -148,18 +186,19 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
         except FileNotFoundError:
             return []
         except Exception as e:
+            self.log(f"❌ 获取子目录时出错: {e}")
             return []
 
     def copy_directory_with_progress(self, src, dst):
         try:
             if not os.path.exists(src):
+                self.log(f"❌ 源目录不存在: {src}")
                 return
 
             if not os.path.exists(dst):
                 os.makedirs(dst)
 
             total_files = sum(len(files) for _, _, files in os.walk(src))
-
             self.progressBar.setMaximum(total_files)
 
             file_count = 0
@@ -175,10 +214,71 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
                     shutil.copy2(src_file, dest_file)
                     file_count += 1
                     self.progressBar.setValue(file_count)
+                    self.log(f"复制文件: {src_file} 到 {dest_file}")
                     QtCore.QCoreApplication.processEvents()  # 更新进度条显示
-
+            self.log("✅ 复制目录完成")
         except Exception as e:
-            self.statusLabel.setText(f"错误: {e}")
+            self.log(f"❌ 复制目录时出错: {e}")
+
+    def log(self, message):
+        self.logTextEdit.append(message)
+        # 同时更新状态标签
+        self.statusLabel.setText(message)
+
+    def is_content_valid(self, content, min_chinese=1):
+        # 验证内容是否包含至少一个中文字符（避免误判为拉丁编码）
+        chinese_chars = sum('\u4e000' <= char <= '\u9fff' for char in content)
+        return chinese_chars >= min_chinese
+
+    def read_file_with_correct_encoding(self, file_path, target_string):
+        try:
+            with open(file_path, 'rb') as f:
+                data = f.read()
+        except Exception as e:
+            self.log(f"❌ 文件读取失败: {e}")
+            return False
+
+        # ------------------------- 编码检测优化 -------------------------
+        # 1. 优先尝试中文相关编码（GB18030覆盖GBK，兼容性更好）
+        priority_encodings = ['gb18030', 'utf-8', 'utf-16', 'ascii']
+        
+        # 2. 使用cchardet检测（比chardet更快更准）
+        try:
+            detected = chardet.detect(data)
+            if detected['encoding']:
+                # 如果检测到的是非中文编码且置信度低，将其后置
+                if detected['confidence'] < 0.7 or detected['encoding'].lower() not in ['gb18030', 'gbk', 'utf-8']:
+                    priority_encodings.append(detected['encoding'])
+                else:
+                    priority_encodings.insert(0, detected['encoding'])  # 高置信度中文编码前置
+        except:
+            pass
+        
+        # 3. 补充其他可能编码并去重
+        encodings = priority_encodings + [
+            'gbk', 'big5', 'utf-16-le', 'utf-16-be', 'shift_jis',
+            'iso-8859-1', 'latin-1', 'cp936', 'cp950', 'utf-7'
+        ]
+        seen = set()
+        ordered_encodings = []
+        for enc in encodings:
+            enc_lower = enc.lower()
+            if enc_lower not in seen:
+                seen.add(enc_lower)
+                ordered_encodings.append(enc)
+        
+        # ------------------------- 解码验证优化 -------------------------
+        for enc in ordered_encodings:
+            try:
+                content = data.decode(enc, errors='strict')  # 严格模式避免静默错误
+            except (UnicodeDecodeError, LookupError):
+                continue
+            # 改进验证：检查目标字符串且无异常字符（如乱码）
+            if target_string in content and self.is_content_valid(content):
+                self.log(f"✅ 成功解码！ | 检测到的编码类型为: {enc.ljust(12)}")
+                return enc.ljust(12)
+        self.log("❌ 解码失败，未找到匹配编码。")
+        return None
 
     FILE_SIGNATURES = {
         'jpg': (b'\xff\xd8\xff', b'\xff\xd8\xff\xe0', b'\xff\xd8\xff\xe1'),
@@ -240,24 +340,10 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
                     return
                 try:
                     os.rename(file_path, new_file_path)
+                    self.log(f"💬 重命名文件: {file_path} 为 {new_file_path}")
                 except Exception as e:
+                    self.log(f"❌ 重命名文件时出错: {e}")
                     return
-    def correct_file_extension(self, file_path):
-            actual_ext = self.get_actual_extension(file_path)
-            if not actual_ext:
-                return
-
-            recommended_ext = self.get_recommended_extension(file_path)
-            if recommended_ext:
-                if actual_ext.lower() != recommended_ext.lower():
-                    base_name, _ = os.path.splitext(file_path)
-                    new_file_path = f"{base_name}.{actual_ext}"
-                    if os.path.exists(new_file_path):
-                        return
-                    try:
-                        os.rename(file_path, new_file_path)
-                    except Exception as e:
-                        return
 
     def batch_correct_extensions(self, directory):
         for root, dirs, files in os.walk(directory):
@@ -267,11 +353,10 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
                 if mime_type and mime_type.startswith('image/'):
                     self.correct_file_extension(file_path)
 
-
 def main():
     app = QtWidgets.QApplication(sys.argv)
     ex = QQNTEmojiExporter()
-    app.setWindowIcon(QIcon(os.path.join(icon,"icon.ico")))
+    app.setWindowIcon(QIcon(os.path.join(icon, "icon.ico")))
     ex.show()
     sys.exit(app.exec_())
 
