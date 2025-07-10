@@ -28,7 +28,7 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
     def initUI(self):
         # self.setGeometry(300, 300, 590, 600)  # 增加窗口高度以适应新的控件
         self.setFixedSize(800, 600)  # 固定窗口大小为 800x600
-        self.setWindowTitle('QQNT表情包批量提取工具 GUI版 V1.3 Build：2025/7/10')
+        self.setWindowTitle('QQNT表情包批量提取工具 GUI版 V1.4 Build：2025/7/10')
 
         layout = QtWidgets.QVBoxLayout()
         form_layout = QtWidgets.QFormLayout()
@@ -101,7 +101,7 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
         self.setLayout(layout)
         
         # 程序启动提示
-        self.log("💬 QQNT表情包批量提取工具 GUI版 V1.3 Build：2025/7/10")
+        self.log("💬 QQNT表情包批量提取工具 GUI版 V1.4 Build：2025/7/10")
         self.log("💡Tips: 使用中遇到问题或者反馈bug，可点击程序下方按钮反馈！")
         self.log("💡建议在使用前提前打开要提取表情包的账户，随便选择一个聊天窗口，将表情全部加载出来，这样提取的表情包更齐全。")
 
