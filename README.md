@@ -12,10 +12,14 @@
 
 13: 该仓库为**Windows**版，**Android**版请前往[这个仓库](https://github.com/VanillaNahida/QQFavoriteExtract-android)
 
+# 程序界面
+![](./img/ui.png)
+
 # 特点  
 
  - 全自动操作，自动查找表情文件位置，复制文件并重命名  
  - 支持多账号分开提取对应的收藏表情包
+ - 图形化界面，操作更友好
 
 # 使用方法  
 
