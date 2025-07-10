@@ -3,14 +3,11 @@ import sys
 import json
 import time
 import shutil
-import struct
 import chardet
 import requests
 import mimetypes
 import subprocess
 import configparser
-from tqdm import tqdm
-from time import sleep
 from pathlib import Path
 from PyQt5 import QtWidgets, QtGui, QtCore
 from PyQt5.QtGui import QIcon
