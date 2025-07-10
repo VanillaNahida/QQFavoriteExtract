@@ -3,3 +3,4 @@
 *.onefile-build/
 *__pycache__/
 *.exe
+*.bat
