@@ -10,7 +10,7 @@
 
 可**批量**提取QQ账号收藏表情包  
 
-该仓库为**Windows**版，**Android**版请前往[这个仓库](https://github.com/NyaOH-Nahida/QQFavoriteExtract-android)
+13: 该仓库为**Windows**版，**Android**版请前往[这个仓库](https://github.com/VanillaNahida/QQFavoriteExtract-android)
 
 # 特点  
 
@@ -19,7 +19,7 @@
 
 # 使用方法  
 
-1. 请前往[GitHub Release](https://github.com/NyaOH-Nahida/QQFavoriteExtract/releases)下载exe文件
+22: 1. 请前往[GitHub Release](https://github.com/VanillaNahida/QQFavoriteExtract/releases)下载exe文件
   > [!NOTE]
   > 如果你的网络环境较差，无法连接到 Github，可以使用 [GitHub Proxy](https://mirror.ghproxy.com/) 提供的文件代理加速下载服务
   > 或者您可以前往 [Gitee Release](https://gitee.com/NyaOH/QQFavoriteExtract/releases) 下载exe文件（推荐）
