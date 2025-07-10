@@ -1,10 +1,11 @@
 import os
 import sys
+import json
+import time
 import shutil
 import struct
 import chardet
 import requests
-import json
 import mimetypes
 import subprocess
 import configparser
@@ -118,6 +119,59 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
             self.savePath = directory
             self.log(f"✅ 已将保存路径设置为: {directory}")
 
+    def get_nickname_cache_path(self):
+        appdata_path = os.getenv('LOCALAPPDATA')
+        if not appdata_path:
+            appdata_path = os.path.join(os.getenv('USERPROFILE'), 'AppData', 'LocalLow')
+        cache_dir = os.path.join(appdata_path, 'QQ表情包批量提取工具数据目录')
+        os.makedirs(cache_dir, exist_ok=True)
+        return os.path.join(cache_dir, '用户昵称缓存.json')
+
+    def load_nickname_cache(self):
+        cache_path = self.get_nickname_cache_path()
+        if os.path.exists(cache_path):
+            try:
+                with open(cache_path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            except:
+                return {}
+        return {}
+
+    def save_nickname_cache(self, cache_data):
+        cache_path = self.get_nickname_cache_path()
+        try:
+            with open(cache_path, 'w', encoding='utf-8') as f:
+                json.dump(cache_data, f, ensure_ascii=False, indent=2)
+        except:
+            self.log("❌ 保存昵称缓存失败")
+
+    def get_user_nickname(self, qq_number):
+        cache = self.load_nickname_cache()
+        now = int(time.time())
+        
+        # 检查缓存中是否有有效数据
+        if qq_number in cache and \
+           'username_expire_time' in cache[qq_number] and \
+           cache[qq_number]['username_expire_time'] > now:
+            return cache[qq_number].get('name', '')
+        
+        # 从API获取新数据
+        try:
+            response = requests.get(f"https://api.xinyew.cn/api/qqtxnc?qq={qq_number}")
+            data = response.json()
+            if data["code"] == 200 and data["data"]["name"]:
+                # 更新缓存
+                cache[qq_number] = {
+                    'name': data['data']['name'],
+                    'username_expire_time': now + 3600  # 1小时后过期
+                }
+                self.save_nickname_cache(cache)
+                return data['data']['name']
+        except:
+            pass
+        
+        return ''
+
     def populateUserComboBox(self):
         configPath = self.default_ini_path
         if os.path.exists(configPath):
@@ -126,7 +180,12 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
                 numeric_subdirs = self.get_numeric_subdirectories(userdata_save_path)
                 if numeric_subdirs:
                     for subdir in numeric_subdirs:
-                        self.userComboBox.addItem(subdir)
+                        nickname = self.get_user_nickname(subdir)
+                        if nickname:
+                            display_name = f"{nickname}（{subdir}）"
+                            self.userComboBox.addItem(display_name, subdir)
+                        else:
+                            self.userComboBox.addItem(subdir, subdir)
                 else:
                     self.log("❌ 未找到任何用户目录")
             else:
@@ -142,8 +201,8 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
             QtWidgets.QMessageBox.information(self, '提示', '你还没有选择保存路径呢，请先选择保存路径！', QtWidgets.QMessageBox.Ok)
             return
 
-        selected_user = self.userComboBox.currentText()
-        if not selected_user:
+        selected_data = self.userComboBox.currentData()  # 获取存储的原始QQ号
+        if not selected_data:
             self.log("❌ 你还没有选择用户呢，请先选择一个用户！")
             QtWidgets.QMessageBox.information(self, '提示', '你还没有选择用户呢，请先选择一个用户！', QtWidgets.QMessageBox.Ok)
             return
@@ -159,15 +218,15 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
         self.log("💬 正在读取配置文件……")
         userdata_save_path = self.get_userdata_save_path(configPath)
         if userdata_save_path:
-            file_path = Path(os.path.join(userdata_save_path, selected_user))
+            file_path = Path(os.path.join(userdata_save_path, selected_data))
             emoji_path = file_path / "nt_qq" / "nt_data" / "Emoji" / "personal_emoji" / "Ori"
-            self.log(f"✅ 复制表情包文件到: {self.savePath}/{selected_user}_提取的表情")
-            self.copy_directory_with_progress(str(emoji_path), f"{self.savePath}/{selected_user}_提取的表情")
+            self.log(f"✅ 复制表情包文件到: {self.savePath}/{selected_data}_提取的表情")
+            self.copy_directory_with_progress(str(emoji_path), f"{self.savePath}/{selected_data}_提取的表情")
             self.log("✅ 复制完成！开始重命名文件")
-            self.batch_correct_extensions(f"{self.savePath}/{selected_user}_提取的表情")
+            self.batch_correct_extensions(f"{self.savePath}/{selected_data}_提取的表情")
             self.log("✅ 完成！正在打开输出文件夹……")
             try:
-                subprocess.Popen(['explorer', os.path.abspath(f"{self.savePath}/{selected_user}_提取的表情")])
+                subprocess.Popen(['explorer', os.path.abspath(f"{self.savePath}/{selected_data}_提取的表情")])
                 QtWidgets.QMessageBox.information(self, '完成', '提取成功！', QtWidgets.QMessageBox.Ok)
 
 
