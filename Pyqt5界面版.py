@@ -3,6 +3,8 @@ import sys
 import shutil
 import struct
 import chardet
+import requests
+import json
 import mimetypes
 import subprocess
 import configparser
@@ -14,6 +16,7 @@ from PyQt5.QtGui import QIcon
 
 icon = os.path.dirname(os.path.abspath(__file__))
 
+
 class QQNTEmojiExporter(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
@@ -24,7 +27,7 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
     def initUI(self):
         # self.setGeometry(300, 300, 590, 600)  # 增加窗口高度以适应新的控件
         self.setFixedSize(800, 600)  # 固定窗口大小为 800x600
-        self.setWindowTitle('QQNT表情包批量提取工具 GUI版 V1.2 Build：2025/7/10')
+        self.setWindowTitle('QQNT表情包批量提取工具 GUI版 V1.3 Build：2025/7/10')
 
         layout = QtWidgets.QVBoxLayout()
         form_layout = QtWidgets.QFormLayout()
@@ -95,6 +98,11 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
         layout.addWidget(self.feedbackButton)
 
         self.setLayout(layout)
+        
+        # 程序启动提示
+        self.log("💬 QQNT表情包批量提取工具 GUI版 V1.3 Build：2025/7/10")
+        self.log("💡Tips: 使用中遇到问题或者反馈bug，可点击程序下方按钮反馈！")
+        self.log("💡建议在使用前提前打开要提取表情包的账户，随便选择一个聊天窗口，将表情全部加载出来，这样提取的表情包更齐全。")
 
         self.populateUserComboBox()
 
@@ -127,13 +135,17 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
             self.log("❌ 未找到配置文件")
 
     def startExport(self):
+        selected_data = self.userComboBox.currentData()  # 获取存储的原始QQ号
+        # 后续代码中使用selected_data代替currentText()
         if not self.savePath:
-            self.log("❌ 请先选择保存路径！")
+            self.log("❌ 你还没有选择保存路径呢，请先选择保存路径！")
+            QtWidgets.QMessageBox.information(self, '提示', '你还没有选择保存路径呢，请先选择保存路径！', QtWidgets.QMessageBox.Ok)
             return
 
         selected_user = self.userComboBox.currentText()
         if not selected_user:
-            self.log("❌ 请先选择一个用户！")
+            self.log("❌ 你还没有选择用户呢，请先选择一个用户！")
+            QtWidgets.QMessageBox.information(self, '提示', '你还没有选择用户呢，请先选择一个用户！', QtWidgets.QMessageBox.Ok)
             return
 
         configPath = self.default_ini_path
@@ -156,13 +168,15 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
             self.log("✅ 完成！正在打开输出文件夹……")
             try:
                 subprocess.Popen(['explorer', os.path.abspath(f"{self.savePath}/{selected_user}_提取的表情")])
+                QtWidgets.QMessageBox.information(self, '完成', '提取成功！', QtWidgets.QMessageBox.Ok)
+
+
             except Exception as e:
                 self.log(f"❌ 无法打开资源管理器: {e}")
         else:
             self.log("❌ 读取配置文件失败")
 
     def get_userdata_save_path(self, ini_file_path):
-        self.log("💬 QQ表情包批量提取工具 GUI版 V1.2 Build：2025/7/10")
         config = configparser.ConfigParser()
         target_string = '[UserDataSet]'
         try:
