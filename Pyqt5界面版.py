@@ -193,18 +193,29 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
         else:
             self.log("❌ 未找到配置文件")
 
-    def startExport(self):
-        selected_data = self.userComboBox.currentData()  # 获取存储的原始QQ号
-        # 后续代码中使用selected_data代替currentText()
-        if not self.savePath:
-            self.log("❌ 你还没有选择保存路径呢，请先选择保存路径！")
-            QtWidgets.QMessageBox.information(self, '提示', '你还没有选择保存路径呢，请先选择保存路径！', QtWidgets.QMessageBox.Ok)
-            return
+    def sanitize_filename(self, name):
+        # Windows文件名非法字符
+        invalid_chars = '<>:"/\\|?*'
+        for char in invalid_chars:
+            name = name.replace(char, '')
+        return name.strip()
 
+    def get_display_name(self, qq_number):
+        cache = self.load_nickname_cache()
+        if qq_number in cache and 'name' in cache[qq_number]:
+            return f"{cache[qq_number]['name']}（{qq_number}）"
+        return qq_number
+
+    def startExport(self):
         selected_data = self.userComboBox.currentData()  # 获取存储的原始QQ号
         if not selected_data:
             self.log("❌ 你还没有选择用户呢，请先选择一个用户！")
             QtWidgets.QMessageBox.information(self, '提示', '你还没有选择用户呢，请先选择一个用户！', QtWidgets.QMessageBox.Ok)
+            return
+
+        if not self.savePath:
+            self.log("❌ 你还没有选择保存路径呢，请先选择保存路径！")
+            QtWidgets.QMessageBox.information(self, '提示', '你还没有选择保存路径呢，请先选择保存路径！', QtWidgets.QMessageBox.Ok)
             return
 
         configPath = self.default_ini_path
@@ -220,13 +231,17 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
         if userdata_save_path:
             file_path = Path(os.path.join(userdata_save_path, selected_data))
             emoji_path = file_path / "nt_qq" / "nt_data" / "Emoji" / "personal_emoji" / "Ori"
-            self.log(f"✅ 复制表情包文件到: {self.savePath}/{selected_data}_提取的表情")
-            self.copy_directory_with_progress(str(emoji_path), f"{self.savePath}/{selected_data}_提取的表情")
+            display_name = self.get_display_name(selected_data)
+            safe_name = self.sanitize_filename(display_name)
+            output_dir = f"{self.savePath}/{safe_name}_提取的表情"
+            
+            self.log(f"✅ 复制表情包文件到: {output_dir}")
+            self.copy_directory_with_progress(str(emoji_path), output_dir)
             self.log("✅ 复制完成！开始重命名文件")
-            self.batch_correct_extensions(f"{self.savePath}/{selected_data}_提取的表情")
+            self.batch_correct_extensions(output_dir)
             self.log("✅ 完成！正在打开输出文件夹……")
             try:
-                subprocess.Popen(['explorer', os.path.abspath(f"{self.savePath}/{selected_data}_提取的表情")])
+                subprocess.Popen(['explorer', os.path.abspath(output_dir)])
                 QtWidgets.QMessageBox.information(self, '完成', '提取成功！', QtWidgets.QMessageBox.Ok)
 
 
@@ -303,6 +318,10 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
         self.logTextEdit.append(message)
         # 同时更新状态标签
         self.statusLabel.setText(message)
+        # 自动滚动到底部
+        scrollbar = self.logTextEdit.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum())
+        self.logTextEdit.ensureCursorVisible()
 
     def is_content_valid(self, content, min_chinese=1):
         # 验证内容是否包含至少一个中文字符（避免误判为拉丁编码）
