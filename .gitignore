@@ -1,0 +1,6 @@
+*.build/
+*.dist/
+*.onefile-build/
+*__pycache__/
+*.txt
+*.exe
