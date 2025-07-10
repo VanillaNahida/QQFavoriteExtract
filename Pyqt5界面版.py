@@ -24,7 +24,7 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
     def initUI(self):
         # self.setGeometry(300, 300, 590, 600)  # 增加窗口高度以适应新的控件
         self.setFixedSize(800, 600)  # 固定窗口大小为 800x600
-        self.setWindowTitle('QQNT表情批量导出 GUI版')
+        self.setWindowTitle('QQNT表情包批量提取工具 GUI版 V1.2 Build：2025/7/10')
 
         layout = QtWidgets.QVBoxLayout()
         form_layout = QtWidgets.QFormLayout()
@@ -88,6 +88,12 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
         self.statusLabel.setStyleSheet("QLabel {font-size: 20px;}")
         layout.addWidget(self.statusLabel)
 
+        # 添加反馈按钮
+        self.feedbackButton = QtWidgets.QPushButton('👉使用中遇到问题？点我加群反馈！👈')
+        self.feedbackButton.setFont(QtGui.QFont("黑体", 14, QtGui.QFont.Bold))
+        self.feedbackButton.clicked.connect(lambda: subprocess.Popen(['start', 'https://sharechain.qq.com/50d8e1a4ad264dc2faad9c1ec52b2c14'], shell=True))
+        layout.addWidget(self.feedbackButton)
+
         self.setLayout(layout)
 
         self.populateUserComboBox()
@@ -143,20 +149,20 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
         if userdata_save_path:
             file_path = Path(os.path.join(userdata_save_path, selected_user))
             emoji_path = file_path / "nt_qq" / "nt_data" / "Emoji" / "personal_emoji" / "Ori"
-            self.log(f"✅ 复制表情包文件到: {self.savePath}/提取的表情")
-            self.copy_directory_with_progress(str(emoji_path), self.savePath + "/提取的表情")
+            self.log(f"✅ 复制表情包文件到: {self.savePath}/{selected_user}_提取的表情")
+            self.copy_directory_with_progress(str(emoji_path), f"{self.savePath}/{selected_user}_提取的表情")
             self.log("✅ 复制完成！开始重命名文件")
-            self.batch_correct_extensions(self.savePath + "/提取的表情")
+            self.batch_correct_extensions(f"{self.savePath}/{selected_user}_提取的表情")
             self.log("✅ 完成！正在打开输出文件夹……")
             try:
-                subprocess.Popen(['explorer', os.path.abspath(self.savePath + "/提取的表情")])
+                subprocess.Popen(['explorer', os.path.abspath(f"{self.savePath}/{selected_user}_提取的表情")])
             except Exception as e:
                 self.log(f"❌ 无法打开资源管理器: {e}")
         else:
             self.log("❌ 读取配置文件失败")
 
     def get_userdata_save_path(self, ini_file_path):
-        self.log("💬 QQ表情包批量提取工具 GUI版 V1.1 Build：2025/2/1")
+        self.log("💬 QQ表情包批量提取工具 GUI版 V1.2 Build：2025/7/10")
         config = configparser.ConfigParser()
         target_string = '[UserDataSet]'
         try:
