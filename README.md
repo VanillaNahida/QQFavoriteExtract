@@ -2,7 +2,7 @@
 
 <img decoding="async" align=right src="https://upload-bbs.miyoushe.com/upload/2024/10/31/285532152/f2e2b1acf5c7696f37a80146e15aa3c7_1753693358022516581.gif" width="35%">
 
-# QQNT表情包批量提取工具  
+# QQNT表情包批量提取工具 🛠️
 
 本仓库Gitee镜像：[点击前往Gitee仓库](https://gitee.com/NyaOH/QQFavoriteExtract)  
 
@@ -15,7 +15,7 @@
 # 程序界面
 ![](./img/ui.png)
 
-# 特点  
+# 特点 ✨ 
 
  - 全自动操作，自动查找表情文件位置，复制文件并重命名  
  - 支持多账号分开提取对应的收藏表情包
@@ -90,7 +90,7 @@ C:\Users\Public\Documents\Tencent\QQ
 </details>
 
 
-# 反馈BUG
+# 反馈BUG 🐛
  - Issue （程序逻辑问题可在此反馈）
  - QQ群 （功能疑问可在此提问）
     - [195260107](https://qm.qq.com/q/KnVT7bcAgy)
