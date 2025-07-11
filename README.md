@@ -90,7 +90,7 @@ C:\Users\Public\Documents\Tencent\QQ
 </details>
 
 
-## 反馈BUG
+# 反馈BUG
  - Issue （程序逻辑问题可在此反馈）
  - QQ群 （功能疑问可在此提问）
     - [195260107](https://qm.qq.com/q/KnVT7bcAgy)
