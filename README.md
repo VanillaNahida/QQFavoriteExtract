@@ -1,4 +1,4 @@
-![QQFavoriteExtract](https://socialify.git.ci/NyaOH-Nahida/QQFavoriteExtract/image?description=1&font=Raleway&forks=1&issues=1&language=1&name=1&owner=1&pattern=Circuit+Board&pulls=1&stargazers=1&theme=Auto)
+![QQFavoriteExtract](https://socialify.git.ci/VanillaNahida/QQFavoriteExtract/image?description=1&font=Raleway&forks=1&issues=1&language=1&name=1&owner=1&pattern=Circuit+Board&pulls=1&stargazers=1&theme=Auto)
 
 <img decoding="async" align=right src="https://upload-bbs.miyoushe.com/upload/2024/10/31/285532152/f2e2b1acf5c7696f37a80146e15aa3c7_1753693358022516581.gif" width="35%">
 
