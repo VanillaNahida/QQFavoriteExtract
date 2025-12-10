@@ -121,9 +121,9 @@ jobs:
         Write-Host "File version: $nuitka_version"
         
         # 准备 Nuitka 参数
+        # 注意：--onefile 和 --standalone 是互斥的，这里只使用 --onefile
         $nuitkaArgs = @(
             "--onefile",
-            "--standalone",
             "--remove-output",
             "--assume-yes-for-downloads",
             "--output-dir=dist",
@@ -133,7 +133,6 @@ jobs:
             "--company-name=VanillaNahida",
             "--lto=yes",
             "--enable-plugin=pyqt5",
-            "--enable-plugin=upx",
             "--onefile-tempdir-spec=%TEMP%\qqfavorite_$version",
             "--include-data-files=LICENSE=.",
             "--include-data-files=README.md=.",
@@ -149,8 +148,8 @@ jobs:
         Write-Host "Nuitka command:"
         Write-Host "nuitka $($nuitkaArgs -join ' ')"
         
-        # 执行构建
-        $result = nuitka @nuitkaArgs
+        # 执行构建 - 直接执行命令以确保正确捕获退出代码
+        nuitka @nuitkaArgs
         
         if ($LASTEXITCODE -ne 0) {
             Write-Error "Nuitka build failed with exit code: $LASTEXITCODE"
@@ -162,39 +161,54 @@ jobs:
     - name: Verify generated executable
       run: |
         $version = "${{ steps.extract_version.outputs.version }}"
-        $expected_exe = "dist\main_gui.exe"
         
-        if (-Not (Test-Path $expected_exe)) {
-            Write-Host "Looking for generated executable..."
-            Get-ChildItem -Path . -Recurse -Filter "*.exe" | ForEach-Object {
-                Write-Host "Found: $($_.FullName)"
+        Write-Host "Looking for generated executable..."
+        # 查找所有生成的可执行文件
+        $exe_files = Get-ChildItem -Path "dist" -Filter "*.exe" | Sort-Object LastWriteTime -Descending
+        
+        if ($exe_files.Count -eq 0) {
+            Write-Host "No executable files found in dist directory. Checking entire project..."
+            $exe_files = Get-ChildItem -Path . -Recurse -Filter "*.exe" | Where-Object { $_.Name -notlike "*.dll" -and $_.Name -notlike "*.sys" } | Sort-Object LastWriteTime -Descending
+            
+            if ($exe_files.Count -eq 0) {
+                Write-Error "No executable files found in project"
+                exit 1
             }
-            Write-Error "Expected executable not found at: $expected_exe"
-            exit 1
         }
         
-        $file_info = Get-Item $expected_exe
-        $file_size_mb = [math]::Round($file_info.Length / 1MB, 2)
-        Write-Host "Executable created successfully:"
-        Write-Host "  Path: $expected_exe"
-        Write-Host "  Size: $file_size_mb MB"
+        # 使用最新生成的可执行文件
+        $generated_exe = $exe_files[0]
+        
+        Write-Host "Executable found:"
+        Write-Host "  Path: $($generated_exe.FullName)"
+        Write-Host "  Name: $($generated_exe.Name)"
+        Write-Host "  Size: $([math]::Round($generated_exe.Length / 1MB, 2)) MB"
         Write-Host "  Version: $version"
+        
+        # 设置环境变量以便后续步骤使用
+        echo "::set-output name=generated_exe_path::$($generated_exe.FullName)"
+        echo "::set-output name=generated_exe_name::$($generated_exe.Name)"
+      id: verify_executable
         
     - name: Rename executable
       run: |
         $version = "${{ steps.extract_version.outputs.version }}"
-        $source = "dist\main_gui.exe"
+        $generated_exe_path = "${{ steps.verify_executable.outputs.generated_exe_path }}"
+        $generated_exe_name = "${{ steps.verify_executable.outputs.generated_exe_name }}"
         $destination = "dist\QQFavoriteExtract_$version.exe"
         
-        Copy-Item -Path $source -Destination $destination -Force
-        Write-Host "Renamed to: $destination"
+        Write-Host "Renaming from: $generated_exe_path"
+        Write-Host "Renaming to: $destination"
+        
+        # 使用Rename-Item进行重命名
+        Rename-Item -Path $generated_exe_path -NewName "QQFavoriteExtract_$version.exe" -Force
         
         # 验证新文件
         if (Test-Path $destination) {
             $size = [math]::Round((Get-Item $destination).Length / 1MB, 2)
             Write-Host "✓ Final executable ready: $destination ($size MB)"
         } else {
-            Write-Error "Failed to create final executable"
+            Write-Error "Failed to rename executable"
             exit 1
         }
         
