@@ -4,3 +4,5 @@
 *__pycache__/
 *.exe
 *.bat
+nuitka-crash-report.xml
+error.log

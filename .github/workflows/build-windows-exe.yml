@@ -1,0 +1,55 @@
+name: Build Windows EXE on Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.9'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install nuitka
+        pip install pyqt5-tools
+    
+    - name: Extract version from tag
+      id: get_version
+      run: |
+        # Extract version from tag (e.g., v1.4.2 -> 1.4.2)
+        echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $env:GITHUB_ENV
+    
+    - name: Build EXE with Nuitka
+      run: |
+        nuitka --onefile --standalone --windows-console-mode=disable --windows-icon-from-ico=img/icon.ico --copyright="VanillaNahida" --lto=yes --enable-plugin=pyqt5 --enable-plugin=upx --onefile-no-compression --file-version="${env:VERSION}" --product-version="${env:VERSION}" .\main_gui.py
+    
+    - name: Rename EXE file
+      run: |
+        # Set repository name
+        $REPO_NAME = "QQFavoriteExtract"
+        # Rename the exe file to {REPO_NAME}_{VERSION}.exe
+        Rename-Item -Path main_gui.exe -NewName "${REPO_NAME}_${env:VERSION}.exe"
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: QQFavoriteExtract-${{ env.VERSION }}-windows
+        path: QQFavoriteExtract_${{ env.VERSION }}.exe
+    
+    - name: Upload to Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: QQFavoriteExtract_${{ env.VERSION }}.exe
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
