@@ -27,29 +27,56 @@ jobs:
     - name: Extract version from tag
       id: get_version
       run: |
-        # Extract version from tag (e.g., v1.4.2 -> 1.4.2)
-        $VERSION = $env:GITHUB_REF -replace 'refs/tags/v', ''
+        # Extract version from tag (e.g., refs/tags/1.4.2 -> 1.4.2)
+        $VERSION = $env:GITHUB_REF -replace 'refs/tags/', ''
         echo "VERSION=$VERSION" >> $env:GITHUB_ENV
+        echo "VERSION_NUMBER=$VERSION" >> $env:GITHUB_ENV
     
     - name: Build EXE with Nuitka
       run: |
+        # Convert version to Nuitka format (1.4.2 -> 1,4,2,0)
+        $VERSION_NUITKA = $env:VERSION -replace '\.', ','
+        $VERSION_NUITKA = "$VERSION_NUITKA,0"  # Add fourth component if needed
+        
+        echo "Building with version: $env:VERSION"
+        echo "Nuitka version format: $VERSION_NUITKA"
+        
         # Build the EXE file
-        nuitka --onefile --standalone --windows-console-mode=disable --windows-icon-from-ico=img/icon.ico --copyright="VanillaNahida" --lto=yes --enable-plugin=pyqt5 --enable-plugin=upx --onefile-no-compression --file-version="${env:VERSION}" --product-version="${env:VERSION}" .\main_gui.py
+        nuitka --onefile --standalone --windows-console-mode=disable --windows-icon-from-ico=img/icon.ico --copyright="VanillaNahida" --lto=yes --enable-plugin=pyqt5 --enable-plugin=upx --onefile-no-compression --file-version="$VERSION_NUITKA" --product-version="$VERSION_NUITKA" .\main_gui.py
+        
         # List generated files to debug
-        ls -la
+        dir
     
     - name: Find and Rename EXE file
       run: |
         # Set repository name
         $REPO_NAME = "QQFavoriteExtract"
-        # Find the generated EXE file (it might be in a different location or have a slightly different name)
-        $EXE_FILE = Get-ChildItem -Path . -Name "*.exe" | Where-Object { $_ -like "*main*" -or $_ -like "*QQFavoriteExtract*" }
+        
+        # Check what files were generated
+        Write-Host "Current directory contents:"
+        Get-ChildItem -Path .
+        
+        # First check for main_gui.dist directory
+        if (Test-Path "main_gui.dist") {
+          Write-Host "Found main_gui.dist directory"
+          Get-ChildItem -Path "main_gui.dist"
+        }
+        
+        # Look for EXE file
+        $EXE_FILE = Get-ChildItem -Recurse -Path . -Filter "*.exe" | Select-Object -First 1
         if (-not $EXE_FILE) {
-          Write-Error "No EXE file found! Available files: $(Get-ChildItem -Path . -Name)"
+          Write-Error "No EXE file found!"
           exit 1
         }
+        
+        Write-Host "Found EXE file: $($EXE_FILE.FullName)"
+        
+        # Copy EXE to current directory
+        Copy-Item -Path $EXE_FILE.FullName -Destination "main_gui.exe" -Force
+        
         # Rename the exe file to {REPO_NAME}_{VERSION}.exe
-        Rename-Item -Path $EXE_FILE -NewName "${REPO_NAME}_${env:VERSION}.exe"
+        Rename-Item -Path "main_gui.exe" -NewName "${REPO_NAME}_${env:VERSION}.exe"
+        
         # Verify the renamed file exists
         if (Test-Path "${REPO_NAME}_${env:VERSION}.exe") {
           Write-Host "Successfully renamed to ${REPO_NAME}_${env:VERSION}.exe"
