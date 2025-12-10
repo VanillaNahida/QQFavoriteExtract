@@ -33,14 +33,30 @@ jobs:
     
     - name: Build EXE with Nuitka
       run: |
+        # Build the EXE file
         nuitka --onefile --standalone --windows-console-mode=disable --windows-icon-from-ico=img/icon.ico --copyright="VanillaNahida" --lto=yes --enable-plugin=pyqt5 --enable-plugin=upx --onefile-no-compression --file-version="${env:VERSION}" --product-version="${env:VERSION}" .\main_gui.py
+        # List generated files to debug
+        ls -la
     
-    - name: Rename EXE file
+    - name: Find and Rename EXE file
       run: |
         # Set repository name
         $REPO_NAME = "QQFavoriteExtract"
+        # Find the generated EXE file (it might be in a different location or have a slightly different name)
+        $EXE_FILE = Get-ChildItem -Path . -Name "*.exe" | Where-Object { $_ -like "*main*" -or $_ -like "*QQFavoriteExtract*" }
+        if (-not $EXE_FILE) {
+          Write-Error "No EXE file found! Available files: $(Get-ChildItem -Path . -Name)"
+          exit 1
+        }
         # Rename the exe file to {REPO_NAME}_{VERSION}.exe
-        Rename-Item -Path main_gui.exe -NewName "${REPO_NAME}_${env:VERSION}.exe"
+        Rename-Item -Path $EXE_FILE -NewName "${REPO_NAME}_${env:VERSION}.exe"
+        # Verify the renamed file exists
+        if (Test-Path "${REPO_NAME}_${env:VERSION}.exe") {
+          Write-Host "Successfully renamed to ${REPO_NAME}_${env:VERSION}.exe"
+        } else {
+          Write-Error "Failed to rename the file!"
+          exit 1
+        }
     
     - name: Upload artifact
       uses: actions/upload-artifact@v4
