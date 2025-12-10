@@ -140,7 +140,7 @@ jobs:
             "--file-version=$nuitka_version",
             "--product-version=$nuitka_version",
             "--product-name=QQFavoriteExtract",
-            "--file-description=QQ收藏夹导出工具",
+            "--file-description=QQ表情包导出工具",
             ".\main_gui.py"
         )
         
