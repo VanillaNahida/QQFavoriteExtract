@@ -89,12 +89,12 @@ jobs:
         
         print(f'Final version: {version}')
         
-        # 转换为 Nuitka 格式 (1.2.3 -> 1,2,3,0)
+        # 转换为 Nuitka 格式 (1.2.3 -> 1.2.3.0)
         parts = version.split('.')
         while len(parts) < 4:
             parts.append('0')
         parts = parts[:4]
-        nuitka_version = ','.join(parts)
+        nuitka_version = '.'.join(parts)
         print(f'Nuitka version format: {nuitka_version}')
         
         # 设置输出变量
@@ -133,7 +133,7 @@ jobs:
             "--company-name=VanillaNahida",
             "--lto=yes",
             "--enable-plugin=pyqt5",
-            "--onefile-tempdir-spec=%TEMP%\qqfavorite_$version",
+            "--onefile-tempdir-spec={TEMP}\qqfavorite_$version",
             "--include-data-files=LICENSE=.",
             "--include-data-files=README.md=.",
             "--include-data-dir=img=img",
@@ -149,11 +149,26 @@ jobs:
         Write-Host "nuitka $($nuitkaArgs -join ' ')"
         
         # 执行构建 - 直接执行命令以确保正确捕获退出代码
-        nuitka @nuitkaArgs
+        Write-Host "Starting Nuitka build..."
         
-        if ($LASTEXITCODE -ne 0) {
-            Write-Error "Nuitka build failed with exit code: $LASTEXITCODE"
-            exit $LASTEXITCODE
+        # 执行Nuitka命令，并将输出保存到变量
+        $buildOutput = & nuitka @nuitkaArgs 2>&1
+        $exitCode = $LASTEXITCODE
+        
+        # 输出构建日志
+        Write-Host $buildOutput
+        
+        # 检查构建是否成功
+        if ($exitCode -ne 0) {
+            Write-Error "Nuitka build failed with exit code: $exitCode"
+            exit $exitCode
+        }
+        
+        # 验证是否生成了可执行文件
+        $exeFiles = Get-ChildItem -Path "dist" -Filter "*.exe"
+        if ($exeFiles.Count -eq 0) {
+            Write-Error "Nuitka build completed but no executable file was generated in dist directory"
+            exit 1
         }
         
         Write-Host "Nuitka build completed successfully!"
