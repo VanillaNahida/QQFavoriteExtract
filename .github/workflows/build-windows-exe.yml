@@ -28,7 +28,8 @@ jobs:
       id: get_version
       run: |
         # Extract version from tag (e.g., v1.4.2 -> 1.4.2)
-        echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $env:GITHUB_ENV
+        $VERSION = $env:GITHUB_REF -replace 'refs/tags/v', ''
+        echo "VERSION=$VERSION" >> $env:GITHUB_ENV
     
     - name: Build EXE with Nuitka
       run: |
