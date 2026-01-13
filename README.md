@@ -95,3 +95,7 @@ C:\Users\Public\Documents\Tencent\QQ
  - QQ群 （功能疑问可在此提问）
     - [195260107](https://qm.qq.com/q/KnVT7bcAgy)
     - [621457510](https://qm.qq.com/q/8fhlPfJ6Hm)
+
+**Star History**
+
+[![Star History Chart](https://api.star-history.com/svg?repos=VanillaNahida/QQFavoriteExtract&type=Date)](https://star-history.com/#VanillaNahida/QQFavoriteExtract&Date)
