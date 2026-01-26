@@ -26,6 +26,7 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
         super().__init__()
         self.savePath = None
         self.default_ini_path = r'C:\Users\Public\Documents\Tencent\QQ\UserDataInfo.ini'
+        self.userdata_save_path_cache = None
         self.initUI()
 
     def initUI(self):
@@ -376,6 +377,10 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
             self.log("❌ 读取配置文件失败")
 
     def get_userdata_save_path(self, ini_file_path):
+        # 优先使用缓存的目录
+        if self.userdata_save_path_cache:
+            return self.userdata_save_path_cache
+            
         config = configparser.ConfigParser()
         target_string = '[UserDataSet]'
         userdata_save_path = None
@@ -416,11 +421,15 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
                 
                 if directory:
                     self.log(f"✅ 已手动选择目录: {directory}")
+                    # 保存到缓存
+                    self.userdata_save_path_cache = directory
                     return directory
                 else:
                     self.log("💬 用户取消了手动选择目录")
                     sys.exit()
         
+        # 保存到缓存
+        self.userdata_save_path_cache = userdata_save_path
         return userdata_save_path
 
     def get_numeric_subdirectories(self, parent_dir):
