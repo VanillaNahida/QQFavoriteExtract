@@ -98,4 +98,12 @@ C:\Users\Public\Documents\Tencent\QQ
 
 **Star History**
 
-[![Star History Chart](https://api.star-history.com/svg?repos=VanillaNahida/QQFavoriteExtract&type=Date)](https://star-history.com/#VanillaNahida/QQFavoriteExtract&Date)
+## Star History
+
+<a href="https://www.star-history.com/?repos=VanillaNahida%2FQQFavoriteExtract&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=VanillaNahida/QQFavoriteExtract&type=date&theme=dark&legend=top-left&sealed_token=Xjl1OOs-ErpLnBFtIgh6yxAlgFo1LHk5yL5XgoAjtiLalD-lh8p7ncSf4CLDW9P14YflKkBLvFOG_ximf1B_0wckKU5DM7KcICEzgl03241uWOrgaQXpXw" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=VanillaNahida/QQFavoriteExtract&type=date&legend=top-left&sealed_token=Xjl1OOs-ErpLnBFtIgh6yxAlgFo1LHk5yL5XgoAjtiLalD-lh8p7ncSf4CLDW9P14YflKkBLvFOG_ximf1B_0wckKU5DM7KcICEzgl03241uWOrgaQXpXw" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=VanillaNahida/QQFavoriteExtract&type=date&legend=top-left&sealed_token=Xjl1OOs-ErpLnBFtIgh6yxAlgFo1LHk5yL5XgoAjtiLalD-lh8p7ncSf4CLDW9P14YflKkBLvFOG_ximf1B_0wckKU5DM7KcICEzgl03241uWOrgaQXpXw" />
+ </picture>
+</a>
