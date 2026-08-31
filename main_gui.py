@@ -14,9 +14,6 @@ from pathlib import Path
 from PyQt5 import QtWidgets, QtGui, QtCore
 from PyQt5.QtGui import QIcon
 
-# 版本号
-VERSION = "1.4.3"
-
 icon = os.path.dirname(os.path.abspath(__file__))
 
 
