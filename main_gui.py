@@ -436,7 +436,7 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
                 # 一些常见的分类翻译映射，更加直观友好
                 name_mapping = {
                     'personal_emoji': '个人表情 (personal_emoji)',
-                    'emoji-recv': '接收到表情[内含巨量表情,谨慎加载] (emoji-recv)',
+                    'emoji-recv': '接收到表情[谨慎加载,内含巨量表情] (emoji-recv)',
                     'marketface': '商店表情 (marketface)',
                     'BaseEmojiSyastems': '系统表情[已支持APNG动图转GIF导出] (BaseEmojiSyastems)',
                     'emoji-related': '候选表情[打字时系统推荐] (emoji-related)'
