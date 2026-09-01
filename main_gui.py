@@ -14,6 +14,9 @@ from pathlib import Path
 from PyQt5 import QtWidgets, QtGui, QtCore
 from PyQt5.QtGui import QIcon
 
+from emoji_converter import is_apng_file, convert_apng_to_gif
+from emoji_scanner import get_actual_extension, scan_emoji_folder
+
 icon = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -435,7 +438,7 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
                     'personal_emoji': '个人表情 (personal_emoji)',
                     'emoji-recv': '接收到表情[内含巨量表情,谨慎加载] (emoji-recv)',
                     'marketface': '商店表情 (marketface)',
-                    'BaseEmojiSyastems': '系统表情[动图太难实现,只有静态,不建议保存] (BaseEmojiSyastems)',
+                    'BaseEmojiSyastems': '系统表情[已支持APNG动图转GIF导出] (BaseEmojiSyastems)',
                     'emoji-related': '候选表情[打字时系统推荐] (emoji-related)'
                 }
                 for subdir in subdirs:
@@ -474,7 +477,7 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
         for idx, file_path_str in enumerate(batch_paths):
             current_count = start_idx + idx + 1
             self.progressBar.setValue(current_count)
-            actual_ext = self.get_actual_extension(file_path_str)
+            actual_ext = get_actual_extension(file_path_str)
             if actual_ext:
                 try:
                     with open(file_path_str, 'rb') as f:
@@ -482,14 +485,22 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
                     
                     pixmap = QtGui.QPixmap()
                     if pixmap.loadFromData(file_data):
-                        # 检测是否为超过2帧的动图
+                        # 检测是否为动图（GIF 或 APNG）
                         is_animated = False
-                        try:
-                            reader = QtGui.QImageReader(file_path_str)
-                            if reader.supportsAnimation():
-                                is_animated = reader.imageCount() > 1
-                        except Exception:
-                            pass
+                        badge_text = "GIF"
+                        
+                        # 1. 检查是否为 APNG
+                        if actual_ext.lower() == 'png' and is_apng_file(file_path_str):
+                            is_animated = True
+                            badge_text = "APNG"
+                        else:
+                            # 2. 检查标准动画格式（如 GIF）
+                            try:
+                                reader = QtGui.QImageReader(file_path_str)
+                                if reader.supportsAnimation():
+                                    is_animated = reader.imageCount() > 1
+                            except Exception:
+                                pass
 
                         # 核心内存优化：立即缩放，释放原始大图在内存中的占用
                         scaled_pixmap = pixmap.scaled(
@@ -498,15 +509,15 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
                             QtCore.Qt.SmoothTransformation
                         )
 
-                        # 如果是动图，在缩略图上画 "GIF" 角标
+                        # 如果是动图，在缩略图上画角标
                         if is_animated:
                             painter = QtGui.QPainter(scaled_pixmap)
-                            rect = QtCore.QRect(70, 84, 30, 16)
+                            rect = QtCore.QRect(55, 84, 45, 16)
                             painter.fillRect(rect, QtGui.QColor(0, 0, 0, 160))
                             painter.setPen(QtGui.QColor(255, 255, 255))
                             font = QtGui.QFont("Arial", 8, QtGui.QFont.Bold)
                             painter.setFont(font)
-                            painter.drawText(rect, QtCore.Qt.AlignCenter, "GIF")
+                            painter.drawText(rect, QtCore.Qt.AlignCenter, badge_text)
                             painter.end()
 
                         icon = QtGui.QIcon(scaled_pixmap)
@@ -514,7 +525,8 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
                         item.setData(QtCore.Qt.UserRole, file_path_str)
                         item.setData(QtCore.Qt.UserRole + 1, is_animated)
                         item.setData(QtCore.Qt.UserRole + 2, icon)
-                        item.setToolTip(f"格式: {actual_ext.upper()}\n路径: {os.path.basename(file_path_str)}")
+                        display_ext = "APNG" if badge_text == "APNG" else actual_ext.upper()
+                        item.setToolTip(f"格式: {display_ext}\n路径: {os.path.basename(file_path_str)}")
                         self.previewListWidget.addItem(item)
                 except Exception as e:
                     # 避免控制台大量打印，只记录进日志
@@ -557,23 +569,34 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
         # 3. 读取并展示文件属性信息
         try:
             file_size_kb = os.path.getsize(file_path_str) / 1024
-            actual_ext = self.get_actual_extension(file_path_str)
+            actual_ext = get_actual_extension(file_path_str)
             file_name = os.path.basename(file_path_str)
             
+            format_display = actual_ext.upper() if actual_ext else '未知'
+            if actual_ext and actual_ext.lower() == 'png' and is_apng_file(file_path_str):
+                format_display = "APNG (动态图片)"
+                
             info_text = f"<b>文件名:</b><br/>{file_name}<br/><br/>"
-            info_text += f"<b>格式:</b> {actual_ext.upper() if actual_ext else '未知'}<br/>"
+            info_text += f"<b>格式:</b> {format_display}<br/>"
             info_text += f"<b>大小:</b> {file_size_kb:.2f} KB<br/><br/>"
             info_text += f"<b>保存路径:</b><br/>{file_path_str}"
             self.detailInfoLabel.setText(info_text)
         except Exception as e:
             self.detailInfoLabel.setText(f"获取信息失败: {e}")
             
-        # 4. 展示预览图（支持动图播放）
+        # 4. 展示预览图（支持动图播放，包括 APNG 自动转码实时预览）
         try:
+            play_path = file_path_str
             if is_animated:
-                self.detail_movie = QtGui.QMovie(file_path_str)
+                # 如果是 APNG 格式，转换为临时 GIF 进行流畅播放
+                if is_apng_file(file_path_str):
+                    converted_gif = convert_apng_to_gif(file_path_str)
+                    if converted_gif:
+                        play_path = converted_gif
+
+                self.detail_movie = QtGui.QMovie(play_path)
                 # 保持纵横比缩放到 240x240 以内
-                reader = QtGui.QImageReader(file_path_str)
+                reader = QtGui.QImageReader(play_path)
                 orig_size = reader.size()
                 if orig_size.isValid():
                     scaled_size = orig_size.scaled(240, 240, QtCore.Qt.KeepAspectRatio)
@@ -649,61 +672,23 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
         self.previewListWidget.clear()
         self.emoji_file_paths = []
         self.loaded_emoji_count = 0
-        self.log(f"💬 开始快速扫描分类 [{selected_folder}] 表情包路径...")
+        self.log(f"💬 开始智能扫描分类 [{selected_folder}] 表情文件...")
 
-        # 对于特定分类，若存在 ori 子目录，则只扫描 ori 子目录以获取真正的动图原图
-        target_scan_path = emoji_path
-        if selected_folder in ['emoji-recv', 'personal_emoji', 'marketface']:
-            try:
-                for d in os.listdir(emoji_path):
-                    if d.lower() == 'ori' and os.path.isdir(emoji_path / d):
-                        target_scan_path = emoji_path / d
-                        self.log(f"💬 检测到该分类下存在原图目录 [{d}]，将只扫描原图文件...")
-                        break
-            except Exception as e:
-                self.log(f"⚠️ 探测原图目录时出错: {e}")
-        
-        raw_files = []
-        for root, dirs, filenames in os.walk(str(target_scan_path)):
-            for filename in filenames:
-                raw_files.append(os.path.join(root, filename))
+        self.progressBar.setMaximum(100)
+        self.progressBar.setValue(30)
+        QtCore.QCoreApplication.processEvents()
 
-        total_raw_files = len(raw_files)
-        if total_raw_files == 0:
-            self.log("❌ 该分类目录下未发现任何缓存文件")
-            return
-
-        self.log(f"💬 正在从 {total_raw_files} 个缓存文件中筛选出有效图片...")
-        self.progressBar.setMaximum(total_raw_files)
-        self.progressBar.setValue(0)
-
-        # 快速通过读取文件头魔数筛选出图片，只保留有效图片路径在列表中，不占用高内存
-        unique_emojis = {}  # { base_name: (file_path_str, actual_ext) }
-        for idx, file_path_str in enumerate(raw_files):
-            actual_ext = self.get_actual_extension(file_path_str)
-            if actual_ext:
-                base_name = os.path.splitext(os.path.basename(file_path_str))[0].lower()
-                if base_name not in unique_emojis:
-                    unique_emojis[base_name] = (file_path_str, actual_ext)
-                else:
-                    existing_path, existing_ext = unique_emojis[base_name]
-                    if actual_ext.lower() == 'gif' and existing_ext.lower() != 'gif':
-                        unique_emojis[base_name] = (file_path_str, actual_ext)
-            
-            if idx % 100 == 0 or idx == total_raw_files - 1:
-                self.progressBar.setValue(idx + 1)
-                QtCore.QCoreApplication.processEvents()
-
-        self.emoji_file_paths = [val[0] for val in unique_emojis.values()]
+        # 调用模块化扫描器
+        self.emoji_file_paths = scan_emoji_folder(emoji_path, selected_folder)
         total_valid = len(self.emoji_file_paths)
-        
+
         if total_valid == 0:
             self.log("❌ 未筛选出任何有效的表情包图片")
-            self.progressBar.setValue(total_raw_files)
+            self.progressBar.setValue(100)
             return
 
-        self.log(f"✅ 扫描并筛选完毕，共发现 {total_valid} 个有效表情图片（原缓存文件总数 {total_raw_files} 个）。")
-        self.progressBar.setValue(total_raw_files)
+        self.log(f"✅ 扫描并筛选完毕，共发现 {total_valid} 个有效表情图片。")
+        self.progressBar.setValue(100)
         
         # 触发第一批的懒加载
         self.loadMoreEmojis()
@@ -722,22 +707,40 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
                 if not src_file or not os.path.exists(src_file):
                     continue
                 
-                # 获取真实后缀名，在复制时直接进行命名修正
-                actual_ext = self.get_actual_extension(src_file)
-                filename = os.path.basename(src_file)
-                if actual_ext:
-                    # 如果原文件名没有正确的后缀，就补上
-                    if not filename.lower().endswith(f".{actual_ext}"):
-                        dest_file = os.path.join(dst_dir, f"{filename}.{actual_ext}")
+                # 获取真实后缀名
+                actual_ext = get_actual_extension(src_file)
+                filename_no_ext = os.path.splitext(os.path.basename(src_file))[0]
+                
+                # 如果检测到是 APNG 格式的表情，将其转码为通用动图 GIF 导出
+                if actual_ext and actual_ext.lower() == 'png' and is_apng_file(src_file):
+                    dest_file = os.path.join(dst_dir, f"{filename_no_ext}.gif")
+                    converted_path = convert_apng_to_gif(src_file, dest_file)
+                    if converted_path:
+                        copied_count += 1
+                        self.progressBar.setValue(copied_count)
+                        self.log(f"导出(APNG转GIF) [{copied_count}/{total_files}]: {os.path.basename(src_file)} -> {os.path.basename(dest_file)}")
+                    else:
+                        # 转换失败回退为直接复制 PNG
+                        dest_file = os.path.join(dst_dir, f"{filename_no_ext}.png")
+                        shutil.copy2(src_file, dest_file)
+                        copied_count += 1
+                        self.progressBar.setValue(copied_count)
+                        self.log(f"导出(回退PNG) [{copied_count}/{total_files}]: {os.path.basename(src_file)} -> {os.path.basename(dest_file)}")
+                else:
+                    filename = os.path.basename(src_file)
+                    if actual_ext:
+                        # 如果原文件名没有正确的后缀，就补上
+                        if not filename.lower().endswith(f".{actual_ext}"):
+                            dest_file = os.path.join(dst_dir, f"{filename}.{actual_ext}")
+                        else:
+                            dest_file = os.path.join(dst_dir, filename)
                     else:
                         dest_file = os.path.join(dst_dir, filename)
-                else:
-                    dest_file = os.path.join(dst_dir, filename)
 
-                shutil.copy2(src_file, dest_file)
-                copied_count += 1
-                self.progressBar.setValue(copied_count)
-                self.log(f"导出 [{copied_count}/{total_files}]: {os.path.basename(src_file)} -> {os.path.basename(dest_file)}")
+                    shutil.copy2(src_file, dest_file)
+                    copied_count += 1
+                    self.progressBar.setValue(copied_count)
+                    self.log(f"导出 [{copied_count}/{total_files}]: {os.path.basename(src_file)} -> {os.path.basename(dest_file)}")
                 
                 if idx % 5 == 0 or idx == total_files - 1:
                     QtCore.QCoreApplication.processEvents()
@@ -763,31 +766,7 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
         file_path = Path(os.path.join(userdata_save_path, selected_data))
         emoji_path = file_path / "nt_qq" / "nt_data" / "Emoji" / selected_folder
         if emoji_path.exists():
-            target_scan_path = emoji_path
-            if selected_folder in ['emoji-recv', 'personal_emoji', 'marketface']:
-                try:
-                    for d in os.listdir(emoji_path):
-                        if d.lower() == 'ori' and os.path.isdir(emoji_path / d):
-                            target_scan_path = emoji_path / d
-                            self.log(f"💬 检测到该分类下存在原图目录 [{d}]，将只扫描原图文件...")
-                            break
-                except Exception as e:
-                    self.log(f"⚠️ 探测原图目录时出错: {e}")
-
-            unique_emojis = {}
-            for root, dirs, filenames in os.walk(str(target_scan_path)):
-                for filename in filenames:
-                    full_path = os.path.join(root, filename)
-                    actual_ext = self.get_actual_extension(full_path)
-                    if actual_ext:
-                        base_name = os.path.splitext(filename)[0].lower()
-                        if base_name not in unique_emojis:
-                            unique_emojis[base_name] = (full_path, actual_ext)
-                        else:
-                            existing_path, existing_ext = unique_emojis[base_name]
-                            if actual_ext.lower() == 'gif' and existing_ext.lower() != 'gif':
-                                unique_emojis[base_name] = (full_path, actual_ext)
-            self.emoji_file_paths = [val[0] for val in unique_emojis.values()]
+            self.emoji_file_paths = scan_emoji_folder(emoji_path, selected_folder)
 
     def exportSelected(self):
         selected_data = self.userComboBox.currentData()
@@ -1104,20 +1083,6 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
         self.log("❌ 解码失败，未找到匹配编码。")
         return None
 
-    FILE_SIGNATURES = {
-        'jpg': (b'\xff\xd8\xff', b'\xff\xd8\xff\xe0', b'\xff\xd8\xff\xe1'),
-        'png': (b'\x89PNG\r\n\x1a\n',),
-        'gif': (b'GIF87a', b'GIF89a'),
-        'bmp': (b'BM',),
-        'tiff': (b'II*\x00', b'MM\x00*'),
-        'webp': (b'RIFF', b'WEBP'),
-        'ico': (b'\x00\x00\x01\x00', b'\x00\x00\x02\x00'),
-        'psd': (b'8BPS',),
-        'svg': (b'<?xml', b'<svg'),
-        'heic': (b'ftypheic', b'ftypheix', b'ftyphevc', b'ftyphevx'),
-        'avif': (b'ftypavif', b'ftypavis'),
-    }
-
     MIME_MAPPING = {
         'jpg': 'image/jpeg',
         'png': 'image/png',
@@ -1132,16 +1097,6 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
         'avif': 'image/avif',
     }
 
-    def get_actual_extension(self, file_path):
-        with open(file_path, 'rb') as f:
-            header = f.read(16)
-
-        for ext, signatures in self.FILE_SIGNATURES.items():
-            for sig in signatures:
-                if header.startswith(sig):
-                    return ext
-        return None
-
     def get_recommended_extension(self, file_path):
         mime_type, _ = mimetypes.guess_type(file_path)
         if mime_type:
@@ -1151,7 +1106,7 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
         return None
 
     def correct_file_extension(self, file_path):
-        actual_ext = self.get_actual_extension(file_path)
+        actual_ext = get_actual_extension(file_path)
         if not actual_ext:
             return
 
