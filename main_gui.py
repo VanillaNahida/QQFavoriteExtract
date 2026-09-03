@@ -16,6 +16,7 @@ from PyQt5.QtGui import QIcon
 
 from emoji_converter import is_apng_file, convert_apng_to_gif
 from emoji_scanner import get_actual_extension, scan_emoji_folder
+from marketface_handler import recover_marketface_data
 
 icon = os.path.dirname(os.path.abspath(__file__))
 
@@ -271,6 +272,7 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
 
         self.setLayout(main_layout)
         self.detail_movie = None
+        self.detail_movie_buffer = None
         
         # 连接用户变化槽函数以动态更新表情分类下拉框
         self.userComboBox.currentIndexChanged.connect(self.onUserChanged)
@@ -457,6 +459,38 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
             if self.loaded_emoji_count < len(self.emoji_file_paths) and not self.is_loading:
                 self.loadMoreEmojis()
 
+    def is_marketface_selected(self):
+        return self.emojiFolderComboBox.currentData() == "marketface"
+
+    def get_preview_data(self, file_path_str):
+        """返回 (图片字节, 实际格式, 帧数)，marketface 全程在内存中解密。"""
+        if self.is_marketface_selected():
+            recovered = recover_marketface_data(file_path_str)
+            if recovered is None:
+                return None, None, 0
+            file_data, frame_count = recovered
+            return file_data, "gif", frame_count
+
+        actual_ext = get_actual_extension(file_path_str)
+        if not actual_ext:
+            return None, None, 0
+
+        try:
+            with open(file_path_str, "rb") as file:
+                file_data = file.read()
+            frame_count = 1
+            reader = QtGui.QImageReader()
+            buffer = QtCore.QBuffer()
+            buffer.setData(QtCore.QByteArray(file_data))
+            buffer.open(QtCore.QIODevice.ReadOnly)
+            reader.setDevice(buffer)
+            if reader.supportsAnimation():
+                frame_count = max(reader.imageCount(), 1)
+            buffer.close()
+            return file_data, actual_ext, frame_count
+        except Exception:
+            return None, None, 0
+
     def loadMoreEmojis(self):
         if self.is_loading:
             return
@@ -477,35 +511,18 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
         for idx, file_path_str in enumerate(batch_paths):
             current_count = start_idx + idx + 1
             self.progressBar.setValue(current_count)
-            actual_ext = get_actual_extension(file_path_str)
-            if actual_ext:
+            file_data, actual_ext, frame_count = self.get_preview_data(file_path_str)
+            if file_data and actual_ext:
                 try:
-                    with open(file_path_str, 'rb') as f:
-                        file_data = f.read()
-                    
                     pixmap = QtGui.QPixmap()
                     if pixmap.loadFromData(file_data):
-                        # 检测是否为动图（GIF 或 APNG）
-                        is_animated = False
-                        badge_text = "GIF"
-                        
-                        # 1. 检查是否为 APNG
-                        if actual_ext.lower() == 'png' and is_apng_file(file_path_str):
-                            is_animated = True
-                            badge_text = "APNG"
-                        else:
-                            # 2. 检查标准动画格式（如 GIF）
-                            try:
-                                reader = QtGui.QImageReader(file_path_str)
-                                if reader.supportsAnimation():
-                                    is_animated = reader.imageCount() > 1
-                            except Exception:
-                                pass
+                        is_animated = frame_count > 1
+                        badge_text = "GIF" if actual_ext.lower() == "gif" else actual_ext.upper()
 
                         # 核心内存优化：立即缩放，释放原始大图在内存中的占用
                         scaled_pixmap = pixmap.scaled(
-                            100, 100, 
-                            QtCore.Qt.KeepAspectRatio, 
+                            100, 100,
+                            QtCore.Qt.KeepAspectRatio,
                             QtCore.Qt.SmoothTransformation
                         )
 
@@ -525,11 +542,13 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
                         item.setData(QtCore.Qt.UserRole, file_path_str)
                         item.setData(QtCore.Qt.UserRole + 1, is_animated)
                         item.setData(QtCore.Qt.UserRole + 2, icon)
-                        display_ext = "APNG" if badge_text == "APNG" else actual_ext.upper()
-                        item.setToolTip(f"格式: {display_ext}\n路径: {os.path.basename(file_path_str)}")
+                        item.setToolTip(
+                            f"格式: {actual_ext.upper()}\n"
+                            f"路径: {os.path.basename(file_path_str)}"
+                        )
                         self.previewListWidget.addItem(item)
-                except Exception as e:
-                    # 避免控制台大量打印，只记录进日志
+                except Exception:
+                    # 避免控制台大量打印，只记录在日志中
                     pass
             
             # 每隔 10 张图，或者到尾部时刷新一次界面以防止界面冻结
@@ -551,7 +570,13 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
             except Exception:
                 pass
             self.detail_movie = None
-            
+        if hasattr(self, 'detail_movie_buffer') and self.detail_movie_buffer:
+            try:
+                self.detail_movie_buffer.close()
+            except Exception:
+                pass
+            self.detail_movie_buffer = None
+
         self.detailPreviewLabel.clear()
         
         # 2. 检查是否有焦点项被选中
@@ -572,9 +597,12 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
             actual_ext = get_actual_extension(file_path_str)
             file_name = os.path.basename(file_path_str)
             
-            format_display = actual_ext.upper() if actual_ext else '未知'
-            if actual_ext and actual_ext.lower() == 'png' and is_apng_file(file_path_str):
-                format_display = "APNG (动态图片)"
+            if self.is_marketface_selected():
+                format_display = "GIF（已解密）"
+            else:
+                format_display = actual_ext.upper() if actual_ext else '未知'
+                if actual_ext and actual_ext.lower() == 'png' and is_apng_file(file_path_str):
+                    format_display = "APNG (动态图片)"
                 
             info_text = f"<b>文件名:</b><br/>{file_name}<br/><br/>"
             info_text += f"<b>格式:</b> {format_display}<br/>"
@@ -584,10 +612,36 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
         except Exception as e:
             self.detailInfoLabel.setText(f"获取信息失败: {e}")
             
-        # 4. 展示预览图（支持动图播放，包括 APNG 自动转码实时预览）
+        # 4. 展示预览图（marketface 使用内存解密数据，不创建临时文件）
         try:
-            play_path = file_path_str
-            if is_animated:
+            if self.is_marketface_selected():
+                file_data, actual_ext, frame_count = self.get_preview_data(file_path_str)
+                if not file_data:
+                    self.detailPreviewLabel.setText("marketface 解密失败")
+                    return
+
+                buffer = QtCore.QBuffer(self)
+                buffer.setData(QtCore.QByteArray(file_data))
+                buffer.open(QtCore.QIODevice.ReadOnly)
+                self.detail_movie_buffer = buffer
+                self.detail_movie = QtGui.QMovie(self)
+                self.detail_movie.setDevice(buffer)
+                self.detail_movie.setCacheMode(QtGui.QMovie.CacheAll)
+                size_buffer = QtCore.QBuffer(self)
+                size_buffer.setData(QtCore.QByteArray(file_data))
+                size_buffer.open(QtCore.QIODevice.ReadOnly)
+                reader = QtGui.QImageReader(size_buffer)
+                orig_size = reader.size()
+                size_buffer.close()
+                if orig_size.isValid():
+                    scaled_size = orig_size.scaled(240, 240, QtCore.Qt.KeepAspectRatio)
+                    self.detail_movie.setScaledSize(scaled_size)
+                else:
+                    self.detail_movie.setScaledSize(QtCore.QSize(240, 240))
+                self.detailPreviewLabel.setMovie(self.detail_movie)
+                self.detail_movie.start()
+            elif is_animated:
+                play_path = file_path_str
                 # 如果是 APNG 格式，转换为临时 GIF 进行流畅播放
                 if is_apng_file(file_path_str):
                     converted_gif = convert_apng_to_gif(file_path_str)
@@ -595,7 +649,6 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
                         play_path = converted_gif
 
                 self.detail_movie = QtGui.QMovie(play_path)
-                # 保持纵横比缩放到 240x240 以内
                 reader = QtGui.QImageReader(play_path)
                 orig_size = reader.size()
                 if orig_size.isValid():
@@ -603,13 +656,16 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
                     self.detail_movie.setScaledSize(scaled_size)
                 else:
                     self.detail_movie.setScaledSize(QtCore.QSize(240, 240))
-                
+
                 self.detailPreviewLabel.setMovie(self.detail_movie)
                 self.detail_movie.start()
             else:
                 pixmap = QtGui.QPixmap()
                 if pixmap.load(file_path_str):
-                    scaled_pixmap = pixmap.scaled(240, 240, QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation)
+                    scaled_pixmap = pixmap.scaled(
+                        240, 240, QtCore.Qt.KeepAspectRatio,
+                        QtCore.Qt.SmoothTransformation
+                    )
                     self.detailPreviewLabel.setPixmap(scaled_pixmap)
                 else:
                     self.detailPreviewLabel.setText("图片加载失败")
@@ -666,6 +722,12 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
             except Exception:
                 pass
             self.detail_movie = None
+        if hasattr(self, 'detail_movie_buffer') and self.detail_movie_buffer:
+            try:
+                self.detail_movie_buffer.close()
+            except Exception:
+                pass
+            self.detail_movie_buffer = None
         self.detailPreviewLabel.clear()
         self.detailInfoLabel.setText("未选中表情")
 
@@ -707,12 +769,36 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
                 if not src_file or not os.path.exists(src_file):
                     continue
                 
-                # 获取真实后缀名
+                # marketface 原文件无扩展名且经过加密，导出前必须在内存中恢复。
+                selected_folder = self.emojiFolderComboBox.currentData()
                 actual_ext = get_actual_extension(src_file)
                 filename_no_ext = os.path.splitext(os.path.basename(src_file))[0]
-                
+
+                if selected_folder == "marketface":
+                    recovered = recover_marketface_data(src_file)
+                    if recovered is None:
+                        self.log(f"跳过（无法解密或 GIF 校验失败）: {os.path.basename(src_file)}")
+                        continue
+                    file_data, _ = recovered
+                    dest_file = os.path.join(dst_dir, f"{filename_no_ext}.gif")
+                    if os.path.exists(dest_file):
+                        stem = filename_no_ext
+                        suffix_number = 1
+                        while os.path.exists(dest_file):
+                            dest_file = os.path.join(
+                                dst_dir, f"{stem}_{suffix_number}.gif"
+                            )
+                            suffix_number += 1
+                    with open(dest_file, "wb") as output_file:
+                        output_file.write(file_data)
+                    copied_count += 1
+                    self.progressBar.setValue(copied_count)
+                    self.log(
+                        f"导出(marketface解密) [{copied_count}/{total_files}]: "
+                        f"{os.path.basename(src_file)} -> {os.path.basename(dest_file)}"
+                    )
                 # 如果检测到是 APNG 格式的表情，将其转码为通用动图 GIF 导出
-                if actual_ext and actual_ext.lower() == 'png' and is_apng_file(src_file):
+                elif actual_ext and actual_ext.lower() == 'png' and is_apng_file(src_file):
                     dest_file = os.path.join(dst_dir, f"{filename_no_ext}.gif")
                     converted_path = convert_apng_to_gif(src_file, dest_file)
                     if converted_path:

@@ -4,6 +4,7 @@ import os
 import re
 from pathlib import Path
 from emoji_converter import is_apng_file
+from marketface_handler import is_marketface_candidate, recover_marketface_data
 
 FILE_SIGNATURES = {
     'jpg': (b'\xff\xd8\xff', b'\xff\xd8\xff\xe0', b'\xff\xd8\xff\xe1'),
@@ -111,11 +112,39 @@ def _get_emoji_group_key(file_path_str, emoji_root_path):
     return group_key
 
 
+def scan_marketface_folder(emoji_root_path):
+    """
+    扫描并验证 QQNT marketface 原图。
+
+    marketface 原图通常没有扩展名且经过 XOR 处理；只返回能够在内存中
+    恢复并通过 GIF 全帧校验的文件路径。缩略图和辅助文件不会进入结果。
+    """
+    emoji_path = Path(emoji_root_path)
+    if not emoji_path.exists():
+        return []
+
+    recovered_files = []
+    try:
+        for root, _, files in os.walk(str(emoji_path)):
+            for filename in files:
+                file_path = os.path.join(root, filename)
+                if not is_marketface_candidate(file_path):
+                    continue
+                if recover_marketface_data(file_path) is not None:
+                    recovered_files.append(file_path)
+    except Exception:
+        return []
+
+    return sorted(recovered_files)
+
+
 def scan_emoji_folder(emoji_root_path, selected_folder):
     """
     针对不同 QQNT 表情分类，全量安全扫描并利用智能评分算法筛选出最优质的表情图片文件列表。
     自动剔除冗余子帧/切片，动图自动优选，且保证不会遗漏任何有效表情。
     """
+    if selected_folder.lower() == "marketface":
+        return scan_marketface_folder(emoji_root_path)
     emoji_path = Path(emoji_root_path)
     if not emoji_path.exists():
         return []
