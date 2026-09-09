@@ -11,8 +11,8 @@ import mimetypes
 import subprocess
 import configparser
 from pathlib import Path
-from PyQt5 import QtWidgets, QtGui, QtCore
-from PyQt5.QtGui import QIcon
+from PyQt6 import QtWidgets, QtGui, QtCore
+from PyQt6.QtGui import QIcon
 
 from emoji_converter import is_apng_file, convert_apng_to_gif
 from emoji_scanner import get_actual_extension, scan_emoji_folder
@@ -60,7 +60,7 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
         read_path_layout.addWidget(self.readPathEdit)
         read_path_layout.addWidget(self.selectReadDirButton)
         read_path_label = QtWidgets.QLabel('数据路径:')
-        read_path_label.setFont(QtGui.QFont("SimHei", 11, QtGui.QFont.Bold))
+        read_path_label.setFont(QtGui.QFont("SimHei", 11, QtGui.QFont.Weight.Bold))
         form_layout.addRow(read_path_label, read_path_layout)
 
         # 保存路径选择
@@ -73,7 +73,7 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
         save_path_layout.addWidget(self.savePathEdit)
         save_path_layout.addWidget(self.selectDirButton)
         save_path_label = QtWidgets.QLabel('保存路径:')
-        save_path_label.setFont(QtGui.QFont("SimHei", 11, QtGui.QFont.Bold))  # 设置字体为黑体，字号11，加粗
+        save_path_label.setFont(QtGui.QFont("SimHei", 11, QtGui.QFont.Weight.Bold))  # 设置字体为黑体，字号11，加粗
         form_layout.addRow(save_path_label, save_path_layout)
         self.userComboBox = QtWidgets.QComboBox()
         self.set_font(self.userComboBox)
@@ -100,14 +100,14 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
         user_layout.addWidget(self.helpButton)
         
         user_label = QtWidgets.QLabel('选择用户:')
-        user_label.setFont(QtGui.QFont("SimHei", 11, QtGui.QFont.Bold))  # 设置字体为黑体，字号11，加粗
+        user_label.setFont(QtGui.QFont("SimHei", 11, QtGui.QFont.Weight.Bold))  # 设置字体为黑体，字号11，加粗
         form_layout.addRow(user_label, user_layout)
 
         # 选择分类下拉框
         self.emojiFolderComboBox = QtWidgets.QComboBox()
         self.set_font(self.emojiFolderComboBox)
         emoji_folder_label = QtWidgets.QLabel('选择分类:')
-        emoji_folder_label.setFont(QtGui.QFont("SimHei", 11, QtGui.QFont.Bold))
+        emoji_folder_label.setFont(QtGui.QFont("SimHei", 11, QtGui.QFont.Weight.Bold))
         form_layout.addRow(emoji_folder_label, self.emojiFolderComboBox)
 
         left_layout.addLayout(form_layout)
@@ -174,7 +174,7 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
         # 顶部标题和选择控制栏
         preview_header_layout = QtWidgets.QHBoxLayout()
         preview_label = QtWidgets.QLabel('表情包预览区')
-        preview_label.setFont(QtGui.QFont("SimHei", 12, QtGui.QFont.Bold))
+        preview_label.setFont(QtGui.QFont("SimHei", 12, QtGui.QFont.Weight.Bold))
         preview_header_layout.addWidget(preview_label)
         
         preview_header_layout.addStretch()
@@ -194,11 +194,11 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
         right_layout.addLayout(preview_header_layout)
 
         self.previewListWidget = QtWidgets.QListWidget()
-        self.previewListWidget.setViewMode(QtWidgets.QListView.IconMode)
-        self.previewListWidget.setResizeMode(QtWidgets.QListView.Adjust)
+        self.previewListWidget.setViewMode(QtWidgets.QListView.ViewMode.IconMode)
+        self.previewListWidget.setResizeMode(QtWidgets.QListView.ResizeMode.Adjust)
         self.previewListWidget.setIconSize(QtCore.QSize(100, 100))
         self.previewListWidget.setGridSize(QtCore.QSize(120, 120))
-        self.previewListWidget.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)  # 允许多选
+        self.previewListWidget.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.ExtendedSelection)  # 允许多选
         self.previewListWidget.setDragEnabled(False)
         self.previewListWidget.setStyleSheet("""
             QListWidget {
@@ -221,23 +221,23 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
         # 最右侧单个表情大图预览区域
         detail_layout = QtWidgets.QVBoxLayout()
         detail_title = QtWidgets.QLabel('表情详细预览')
-        detail_title.setFont(QtGui.QFont("SimHei", 12, QtGui.QFont.Bold))
+        detail_title.setFont(QtGui.QFont("SimHei", 12, QtGui.QFont.Weight.Bold))
         detail_layout.addWidget(detail_title)
 
         # 大图显示 Label
         self.detailPreviewLabel = QtWidgets.QLabel()
-        self.detailPreviewLabel.setAlignment(QtCore.Qt.AlignCenter)
-        self.detailPreviewLabel.setFrameStyle(QtWidgets.QFrame.StyledPanel | QtWidgets.QFrame.Sunken)
+        self.detailPreviewLabel.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self.detailPreviewLabel.setFrameStyle(QtWidgets.QFrame.Shape.StyledPanel | QtWidgets.QFrame.Shadow.Sunken)
         self.detailPreviewLabel.setFixedSize(250, 250)
         self.detailPreviewLabel.setStyleSheet("background-color: #f9f9f9; border: 1px solid #cccccc; border-radius: 5px;")
-        detail_layout.addWidget(self.detailPreviewLabel, alignment=QtCore.Qt.AlignCenter)
+        detail_layout.addWidget(self.detailPreviewLabel, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
 
         # 详细属性展示 Label
         self.detailInfoLabel = QtWidgets.QLabel("未选中表情")
         self.detailInfoLabel.setFont(QtGui.QFont("SimHei", 10))
         self.detailInfoLabel.setWordWrap(True)
         self.detailInfoLabel.setFixedWidth(250)  # 固定宽度，防止超长路径把布局撑开
-        self.detailInfoLabel.setAlignment(QtCore.Qt.AlignTop | QtCore.Qt.AlignLeft)
+        self.detailInfoLabel.setAlignment(QtCore.Qt.AlignmentFlag.AlignTop | QtCore.Qt.AlignmentFlag.AlignLeft)
         self.detailInfoLabel.setStyleSheet("color: #333333; padding-top: 10px;")
         detail_layout.addWidget(self.detailInfoLabel)
         
@@ -257,7 +257,7 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
         detail_widget.setFixedWidth(280)
 
         # 创建分割器，将左侧控制区和中间预览区放进去
-        splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
+        splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Horizontal)
         splitter.addWidget(left_widget)
         splitter.addWidget(right_widget)
         splitter.setSizes([380, 740])
@@ -294,8 +294,7 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
         widget.setFont(font)
 
     def selectSavePath(self):
-        options = QtWidgets.QFileDialog.Options()
-        directory = QtWidgets.QFileDialog.getExistingDirectory(self, "💬 请选择表情包保存路径", options=options)
+        directory = QtWidgets.QFileDialog.getExistingDirectory(self, "💬 请选择表情包保存路径")
         if directory:
             self.savePathEdit.setText(directory)
             self.savePath = directory
@@ -355,11 +354,9 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
         return ''
 
     def selectReadPath(self):
-        options = QtWidgets.QFileDialog.Options()
         directory = QtWidgets.QFileDialog.getExistingDirectory(
             self, 
-            "选择QQ聊天记录所在目录（即包含QQ号数字文件夹的 Tencent Files 目录）",
-            options=options
+            "选择QQ聊天记录所在目录（即包含QQ号数字文件夹的 Tencent Files 目录）"
         )
         if directory:
             self.log(f"✅ 已选择数据目录: {directory}")
@@ -482,7 +479,7 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
             reader = QtGui.QImageReader()
             buffer = QtCore.QBuffer()
             buffer.setData(QtCore.QByteArray(file_data))
-            buffer.open(QtCore.QIODevice.ReadOnly)
+            buffer.open(QtCore.QIODevice.OpenModeFlag.ReadOnly)
             reader.setDevice(buffer)
             if reader.supportsAnimation():
                 frame_count = max(reader.imageCount(), 1)
@@ -522,8 +519,8 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
                         # 核心内存优化：立即缩放，释放原始大图在内存中的占用
                         scaled_pixmap = pixmap.scaled(
                             100, 100,
-                            QtCore.Qt.KeepAspectRatio,
-                            QtCore.Qt.SmoothTransformation
+                            QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                            QtCore.Qt.TransformationMode.SmoothTransformation
                         )
 
                         # 如果是动图，在缩略图上画角标
@@ -532,16 +529,16 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
                             rect = QtCore.QRect(55, 84, 45, 16)
                             painter.fillRect(rect, QtGui.QColor(0, 0, 0, 160))
                             painter.setPen(QtGui.QColor(255, 255, 255))
-                            font = QtGui.QFont("Arial", 8, QtGui.QFont.Bold)
+                            font = QtGui.QFont("Arial", 8, QtGui.QFont.Weight.Bold)
                             painter.setFont(font)
-                            painter.drawText(rect, QtCore.Qt.AlignCenter, badge_text)
+                            painter.drawText(rect, QtCore.Qt.AlignmentFlag.AlignCenter, badge_text)
                             painter.end()
 
                         icon = QtGui.QIcon(scaled_pixmap)
                         item = QtWidgets.QListWidgetItem(icon, "")
-                        item.setData(QtCore.Qt.UserRole, file_path_str)
-                        item.setData(QtCore.Qt.UserRole + 1, is_animated)
-                        item.setData(QtCore.Qt.UserRole + 2, icon)
+                        item.setData(QtCore.Qt.ItemDataRole.UserRole, file_path_str)
+                        item.setData(QtCore.Qt.ItemDataRole.UserRole + 1, is_animated)
+                        item.setData(QtCore.Qt.ItemDataRole.UserRole + 2, icon)
                         item.setToolTip(
                             f"格式: {actual_ext.upper()}\n"
                             f"路径: {os.path.basename(file_path_str)}"
@@ -584,8 +581,8 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
             self.detailInfoLabel.setText("未选中表情")
             return
             
-        file_path_str = current_item.data(QtCore.Qt.UserRole)
-        is_animated = current_item.data(QtCore.Qt.UserRole + 1)
+        file_path_str = current_item.data(QtCore.Qt.ItemDataRole.UserRole)
+        is_animated = current_item.data(QtCore.Qt.ItemDataRole.UserRole + 1)
         
         if not file_path_str or not os.path.exists(file_path_str):
             self.detailInfoLabel.setText("文件不存在")
@@ -622,19 +619,19 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
 
                 buffer = QtCore.QBuffer(self)
                 buffer.setData(QtCore.QByteArray(file_data))
-                buffer.open(QtCore.QIODevice.ReadOnly)
+                buffer.open(QtCore.QIODevice.OpenModeFlag.ReadOnly)
                 self.detail_movie_buffer = buffer
                 self.detail_movie = QtGui.QMovie(self)
                 self.detail_movie.setDevice(buffer)
-                self.detail_movie.setCacheMode(QtGui.QMovie.CacheAll)
+                self.detail_movie.setCacheMode(QtGui.QMovie.CacheMode.CacheAll)
                 size_buffer = QtCore.QBuffer(self)
                 size_buffer.setData(QtCore.QByteArray(file_data))
-                size_buffer.open(QtCore.QIODevice.ReadOnly)
+                size_buffer.open(QtCore.QIODevice.OpenModeFlag.ReadOnly)
                 reader = QtGui.QImageReader(size_buffer)
                 orig_size = reader.size()
                 size_buffer.close()
                 if orig_size.isValid():
-                    scaled_size = orig_size.scaled(240, 240, QtCore.Qt.KeepAspectRatio)
+                    scaled_size = orig_size.scaled(240, 240, QtCore.Qt.AspectRatioMode.KeepAspectRatio)
                     self.detail_movie.setScaledSize(scaled_size)
                 else:
                     self.detail_movie.setScaledSize(QtCore.QSize(240, 240))
@@ -652,7 +649,7 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
                 reader = QtGui.QImageReader(play_path)
                 orig_size = reader.size()
                 if orig_size.isValid():
-                    scaled_size = orig_size.scaled(240, 240, QtCore.Qt.KeepAspectRatio)
+                    scaled_size = orig_size.scaled(240, 240, QtCore.Qt.AspectRatioMode.KeepAspectRatio)
                     self.detail_movie.setScaledSize(scaled_size)
                 else:
                     self.detail_movie.setScaledSize(QtCore.QSize(240, 240))
@@ -663,8 +660,8 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
                 pixmap = QtGui.QPixmap()
                 if pixmap.load(file_path_str):
                     scaled_pixmap = pixmap.scaled(
-                        240, 240, QtCore.Qt.KeepAspectRatio,
-                        QtCore.Qt.SmoothTransformation
+                        240, 240, QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                        QtCore.Qt.TransformationMode.SmoothTransformation
                     )
                     self.detailPreviewLabel.setPixmap(scaled_pixmap)
                 else:
@@ -676,13 +673,13 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
         selected_data = self.userComboBox.currentData()
         if not selected_data:
             self.log("❌ 你还没有选择用户呢，请先选择一个用户！")
-            QtWidgets.QMessageBox.information(self, '提示', '你还没有选择用户呢，请先选择一个用户！', QtWidgets.QMessageBox.Ok)
+            QtWidgets.QMessageBox.information(self, '提示', '你还没有选择用户呢，请先选择一个用户！', QtWidgets.QMessageBox.StandardButton.Ok)
             return
 
         selected_folder = self.emojiFolderComboBox.currentData()
         if not selected_folder:
             self.log("❌ 你还没有选择表情分类呢，请先选择一个分类！")
-            QtWidgets.QMessageBox.information(self, '提示', '你还没有选择表情分类呢，请先选择一个分类！', QtWidgets.QMessageBox.Ok)
+            QtWidgets.QMessageBox.information(self, '提示', '你还没有选择表情分类呢，请先选择一个分类！', QtWidgets.QMessageBox.StandardButton.Ok)
             return
 
         configPath = self.default_ini_path
@@ -704,7 +701,7 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
         
         if not emoji_path.exists():
             self.log(f"❌ 未找到该用户的表情分类目录: {emoji_path}")
-            QtWidgets.QMessageBox.warning(self, '警告', '未找到该分类的本地目录，可能是该账号在本地未生成对应分类，或者路径不正确。', QtWidgets.QMessageBox.Ok)
+            QtWidgets.QMessageBox.warning(self, '警告', '未找到该分类的本地目录，可能是该账号在本地未生成对应分类，或者路径不正确。', QtWidgets.QMessageBox.StandardButton.Ok)
             return
 
         # 停止所有正在播放的动图并清空活动字典
@@ -858,24 +855,24 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
         selected_data = self.userComboBox.currentData()
         if not selected_data:
             self.log("❌ 你还没有选择用户呢，请先选择一个用户！")
-            QtWidgets.QMessageBox.information(self, '提示', '你还没有选择用户呢，请先选择一个用户！', QtWidgets.QMessageBox.Ok)
+            QtWidgets.QMessageBox.information(self, '提示', '你还没有选择用户呢，请先选择一个用户！', QtWidgets.QMessageBox.StandardButton.Ok)
             return
 
         if not self.savePath:
             self.log("❌ 你还没有选择保存路径呢，请先选择保存路径！")
-            QtWidgets.QMessageBox.information(self, '提示', '你还没有选择保存路径呢，请先选择保存路径！', QtWidgets.QMessageBox.Ok)
+            QtWidgets.QMessageBox.information(self, '提示', '你还没有选择保存路径呢，请先选择保存路径！', QtWidgets.QMessageBox.StandardButton.Ok)
             return
 
         selected_folder = self.emojiFolderComboBox.currentData()
         if not selected_folder:
             self.log("❌ 你还没有选择表情分类呢，请先选择一个分类！")
-            QtWidgets.QMessageBox.information(self, '提示', '你还没有选择表情分类呢，请先选择一个分类！', QtWidgets.QMessageBox.Ok)
+            QtWidgets.QMessageBox.information(self, '提示', '你还没有选择表情分类呢，请先选择一个分类！', QtWidgets.QMessageBox.StandardButton.Ok)
             return
 
         selected_items = self.previewListWidget.selectedItems()
         if len(selected_items) == 0:
             self.log("❌ 您尚未选择任何表情！请先在右侧预览区选中表情后再导出。")
-            QtWidgets.QMessageBox.warning(self, '提示', '请先在右侧预览区选中表情后再导出！', QtWidgets.QMessageBox.Ok)
+            QtWidgets.QMessageBox.warning(self, '提示', '请先在右侧预览区选中表情后再导出！', QtWidgets.QMessageBox.StandardButton.Ok)
             return
 
         configPath = self.default_ini_path
@@ -890,10 +887,10 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
             self,
             "确认导出选中",
             f"确定导出当前选中的 {len(selected_items)} 个表情？",
-            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
-            QtWidgets.QMessageBox.Yes
+            QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No,
+            QtWidgets.QMessageBox.StandardButton.Yes
         )
-        if reply == QtWidgets.QMessageBox.No:
+        if reply == QtWidgets.QMessageBox.StandardButton.No:
             self.log("💬 用户取消了导出操作")
             return
 
@@ -903,12 +900,12 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
             safe_name = self.sanitize_filename(display_name)
             output_dir = f"{self.savePath}/{safe_name}_{selected_folder}_提取的选中表情"
             self.log(f"✅ 正在复制选中的表情文件到: {output_dir}")
-            selected_paths = [item.data(QtCore.Qt.UserRole) for item in selected_items if item.data(QtCore.Qt.UserRole)]
+            selected_paths = [item.data(QtCore.Qt.ItemDataRole.UserRole) for item in selected_items if item.data(QtCore.Qt.ItemDataRole.UserRole)]
             self.copy_files_with_progress(selected_paths, output_dir)
             self.log("✅ 完成！正在打开输出文件夹……")
             try:
                 subprocess.Popen(['explorer', os.path.abspath(output_dir)])
-                QtWidgets.QMessageBox.information(self, '完成', '选中表情提取成功！', QtWidgets.QMessageBox.Ok)
+                QtWidgets.QMessageBox.information(self, '完成', '选中表情提取成功！', QtWidgets.QMessageBox.StandardButton.Ok)
             except Exception as e:
                 self.log(f"❌ 无法打开资源管理器: {e}")
         else:
@@ -918,18 +915,18 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
         selected_data = self.userComboBox.currentData()
         if not selected_data:
             self.log("❌ 你还没有选择用户呢，请先选择一个用户！")
-            QtWidgets.QMessageBox.information(self, '提示', '你还没有选择用户呢，请先选择一个用户！', QtWidgets.QMessageBox.Ok)
+            QtWidgets.QMessageBox.information(self, '提示', '你还没有选择用户呢，请先选择一个用户！', QtWidgets.QMessageBox.StandardButton.Ok)
             return
 
         if not self.savePath:
             self.log("❌ 你还没有选择保存路径呢，请先选择保存路径！")
-            QtWidgets.QMessageBox.information(self, '提示', '你还没有选择保存路径呢，请先选择保存路径！', QtWidgets.QMessageBox.Ok)
+            QtWidgets.QMessageBox.information(self, '提示', '你还没有选择保存路径呢，请先选择保存路径！', QtWidgets.QMessageBox.StandardButton.Ok)
             return
 
         selected_folder = self.emojiFolderComboBox.currentData()
         if not selected_folder:
             self.log("❌ 你还没有选择表情分类呢，请先选择一个分类！")
-            QtWidgets.QMessageBox.information(self, '提示', '你还没有选择表情分类呢，请先选择一个分类！', QtWidgets.QMessageBox.Ok)
+            QtWidgets.QMessageBox.information(self, '提示', '你还没有选择表情分类呢，请先选择一个分类！', QtWidgets.QMessageBox.StandardButton.Ok)
             return
 
         configPath = self.default_ini_path
@@ -946,17 +943,17 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
 
         if len(self.emoji_file_paths) == 0:
             self.log("❌ 该表情分类下未发现任何有效的图片文件，无法导出！")
-            QtWidgets.QMessageBox.warning(self, '提示', '该分类下未发现任何有效的表情图片文件！', QtWidgets.QMessageBox.Ok)
+            QtWidgets.QMessageBox.warning(self, '提示', '该分类下未发现任何有效的表情图片文件！', QtWidgets.QMessageBox.StandardButton.Ok)
             return
 
         reply = QtWidgets.QMessageBox.question(
             self,
             "确认导出全部",
             f"当前不管界面是否完全加载，将直接导出扫描到的该分类下所有 {len(self.emoji_file_paths)} 个表情？",
-            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
-            QtWidgets.QMessageBox.Yes
+            QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No,
+            QtWidgets.QMessageBox.StandardButton.Yes
         )
-        if reply == QtWidgets.QMessageBox.No:
+        if reply == QtWidgets.QMessageBox.StandardButton.No:
             self.log("💬 用户取消了导出操作")
             return
 
@@ -970,7 +967,7 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
             self.log("✅ 完成！正在打开输出文件夹……")
             try:
                 subprocess.Popen(['explorer', os.path.abspath(output_dir)])
-                QtWidgets.QMessageBox.information(self, '完成', '全部提取成功！', QtWidgets.QMessageBox.Ok)
+                QtWidgets.QMessageBox.information(self, '完成', '全部提取成功！', QtWidgets.QMessageBox.StandardButton.Ok)
             except Exception as e:
                 self.log(f"❌ 无法打开资源管理器: {e}")
         else:
@@ -1225,7 +1222,7 @@ class QQNTEmojiExporter(QtWidgets.QWidget):
             self,
             "使用帮助",
             help_text,
-            QtWidgets.QMessageBox.Ok
+            QtWidgets.QMessageBox.StandardButton.Ok
         )
     
     def batch_correct_extensions(self, directory):
@@ -1241,7 +1238,7 @@ def main():
     ex = QQNTEmojiExporter()
     app.setWindowIcon(QIcon(os.path.join(icon, "icon.ico")))
     ex.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
 
 if __name__ == "__main__":
     main()

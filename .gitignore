@@ -6,3 +6,5 @@
 *.bat
 nuitka-crash-report.xml
 error.log
+venv/
+.venv/

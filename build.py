@@ -79,7 +79,7 @@ def build_with_nuitka():
         '--windows-icon-from-ico=img/icon.ico',
         '--copyright=VanillaNahida',
         '--lto=yes',
-        '--enable-plugin=pyqt5',
+        '--enable-plugin=pyqt6',
         '--enable-plugin=upx',
         '--onefile-no-compression',
         f'--file-version={nuitka_version}',
