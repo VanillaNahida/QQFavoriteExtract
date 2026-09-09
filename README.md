@@ -1,16 +1,32 @@
-![QQFavoriteExtract](https://socialify.git.ci/VanillaNahida/QQFavoriteExtract/image?description=1&font=Raleway&forks=1&issues=1&language=1&name=1&owner=1&pattern=Circuit+Board&pulls=1&stargazers=1&theme=Auto)
+
+![:name](https://count.getloli.com/@QQFavoriteExtract?name=QQFavoriteExtract&theme=minecraft&padding=6&offset=0&align=top&scale=1&pixelated=1&darkmode=auto)
+
+<div align="center">
+
+  [![GitHub license](https://img.shields.io/github/license/VanillaNahida/QQFavoriteExtract?style=flat-square)](https://github.com/VanillaNahida/QQFavoriteExtract/blob/main/LICENSE)
+  [![GitHub stars](https://img.shields.io/github/stars/VanillaNahida/QQFavoriteExtract?style=flat-square)](https://github.com/VanillaNahida/QQFavoriteExtract/stargazers)
+  [![GitHub forks](https://img.shields.io/github/forks/VanillaNahida/QQFavoriteExtract?style=flat-square)](https://github.com/VanillaNahida/QQFavoriteExtract/network)
+  [![GitHub issues](https://img.shields.io/github/issues/VanillaNahida/QQFavoriteExtract?style=flat-square)](https://github.com/VanillaNahida/QQFavoriteExtract/issues)
+  [![Platform](https://img.shields.io/badge/Platform-Windows-brightgreen.svg?style=flat-square)]()
+  [![Author](https://img.shields.io/badge/%E4%BD%9C%E8%80%85-VanillaNahida-green)](https://github.com/VanillaNahida)  
+</div>
 
 <img decoding="async" align=right src="https://upload-bbs.miyoushe.com/upload/2024/10/31/285532152/f2e2b1acf5c7696f37a80146e15aa3c7_1753693358022516581.gif" width="35%">
 
 # QQNT表情包批量提取工具 🛠️
 
-本仓库Gitee镜像：[点击前往Gitee仓库](https://gitee.com/NyaOH/QQFavoriteExtract)  
+一个使用Python编写的QQ表情包批量提取工具，可批量提取QQ账号收藏表情包。
+
+本仓库Gitee镜像：[点击前往Gitee仓库](https://gitee.com/VanillaNahida/QQFavoriteExtract)  
+
+> [!WARNING]
+> 由于我的Gitee账号因为手机号问题无法登录，故本仓库的Gitee镜像已暂停更新。
 
 使用**Python**编写的QQ表情包批量提取工具  
 
 可**批量**提取QQ账号收藏表情包  
 
-13: 该仓库为**Windows**版，**Android**版请前往[这个仓库](https://github.com/VanillaNahida/QQFavoriteExtract-android)
+该仓库为**Windows**版，**Android**版请前往[这个仓库](https://github.com/VanillaNahida/QQFavoriteExtract-android)
 
 # 程序界面
 ![](./img/ui.png)
