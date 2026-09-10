@@ -11,7 +11,7 @@ permissions:
 jobs:
   build-windows-exe:
     runs-on: windows-latest
-    timeout-minutes: 30  # 设置超时时间
+    timeout-minutes: 30
 
     steps:
     - name: Checkout code with tag information
@@ -20,7 +20,7 @@ jobs:
         fetch-depth: 0  # 获取所有历史记录以便获取标签
 
     - name: Setup uv
-      uses: astral-sh/setup-uv@v6
+      uses: astral-sh/setup-uv@v5
       with:
         python-version: '3.12'
         enable-cache: true
@@ -31,226 +31,32 @@ jobs:
         uv lock
         uv sync --frozen --extra build
 
-    - name: Extract version from tag using Python
-      id: extract_version
-      run: |
-        uv run python -c "
-        import os
-        import re
-
-        # 方法1: 从 GITHUB_REF 环境变量提取
-        github_ref = os.environ.get('GITHUB_REF', '')
-        version = None
-
-        if github_ref:
-            match = re.match(r'refs/tags/(?:v?)(\d+(?:\.\d+)*)', github_ref)
-            if match:
-                version = match.group(1)
-                print(f'Extracted version from GITHUB_REF: {version}')
-
-        # 方法2: 从当前 Git 标签获取（作为备用）
-        if not version:
-            import subprocess
-            try:
-                # 获取最新的标签
-                tag_result = subprocess.run(
-                    ['git', 'describe', '--tags', '--abbrev=0'],
-                    capture_output=True,
-                    text=True,
-                    check=False
-                )
-                if tag_result.returncode == 0:
-                    tag = tag_result.stdout.strip()
-                    if tag.startswith('v'):
-                        version = tag[1:]
-                    else:
-                        version = tag
-                    print(f'Extracted version from git tag: {version}')
-            except Exception as e:
-                print(f'Failed to get git tag: {e}')
-
-        # 方法3: 从 pyproject.toml 读取
-        if not version:
-            import tomllib
-            with open('pyproject.toml', 'rb') as f:
-                data = tomllib.load(f)
-                version = data.get('project', {}).get('version', '1.0.0')
-                print(f'Read version from pyproject.toml: {version}')
-
-        # 最终回退方案
-        if not version:
-            version = '1.0.0'
-            print(f'Using fallback version: {version}')
-
-        # 验证版本号格式
-        if not re.match(r'\d+(?:\.\d+)+', version):
-            raise ValueError(f'Invalid version format: {version}')
-
-        print(f'Final version: {version}')
-
-        # 转换为 Nuitka 格式 (1.2.3 -> 1.2.3.0)
-        parts = version.split('.')
-        while len(parts) < 4:
-            parts.append('0')
-        parts = parts[:4]
-        nuitka_version = '.'.join(parts)
-        print(f'Nuitka version format: {nuitka_version}')
-
-        # 设置输出变量
-        print(f'::set-output name=version::{version}')
-        print(f'::set-output name=nuitka_version::{nuitka_version}')
-        "
-
-    - name: Display version information
-      run: |
-        echo "Version: ${{ steps.extract_version.outputs.version }}"
-        echo "Nuitka version format: ${{ steps.extract_version.outputs.nuitka_version }}"
-
-    - name: Create directory for output
-      run: |
-        New-Item -ItemType Directory -Force -Path dist
-
     - name: Build executable with Nuitka
+      id: build
+      # build.py 在 CI 中：解析版本（GITHUB_REF 标签）→ 更新 src/__init__.py →
+      # Nuitka 构建 → 重命名 exe → 输出 version/nuitka_version 到 GITHUB_OUTPUT
       run: |
-        $version = "${{ steps.extract_version.outputs.version }}"
-        $nuitka_version = "${{ steps.extract_version.outputs.nuitka_version }}"
+        uv run python build.py
 
-        Write-Host "Starting Nuitka build process..."
-        Write-Host "Project version: $version"
-        Write-Host "File version: $nuitka_version"
-
-        # 准备 Nuitka 参数
-        # 注意：--onefile 和 --standalone 是互斥的，这里只使用 --onefile
-        $nuitkaArgs = @(
-            "--onefile",
-            "--remove-output",
-            "--assume-yes-for-downloads",
-            "--output-dir=dist",
-            "--windows-console-mode=disable",
-            "--windows-icon-from-ico=img/icon.ico",
-            "--copyright=VanillaNahida",
-            "--company-name=VanillaNahida",
-            "--lto=yes",
-            "--enable-plugin=pyqt6",
-            "--include-package=src",
-            "--onefile-tempdir-spec={TEMP}\qqfavorite_$version",
-            "--include-data-files=LICENSE=LICENSE",
-            "--include-data-files=README.md=README.md",
-            "--include-data-dir=img=img",
-            "--include-data-dir=src/assets=src/assets",
-            "--file-version=$nuitka_version",
-            "--product-version=$nuitka_version",
-            "--product-name=QQFavoriteExtract",
-            "--file-description=QQ表情包导出工具",
-            "src/main.py"
-        )
-
-        # 显示完整命令
-        Write-Host "Nuitka command:"
-        Write-Host "nuitka $($nuitkaArgs -join ' ')"
-
-        # 执行构建 - 直接执行命令以确保正确捕获退出代码
-        Write-Host "Starting Nuitka build..."
-
-        # 执行Nuitka命令，并将输出保存到变量
-        $buildOutput = & uv run nuitka @nuitkaArgs 2>&1
-        $exitCode = $LASTEXITCODE
-
-        # 输出构建日志
-        Write-Host $buildOutput
-
-        # 检查构建是否成功
-        if ($exitCode -ne 0) {
-            Write-Error "Nuitka build failed with exit code: $exitCode"
-            exit $exitCode
-        }
-
-        # 验证是否生成了可执行文件
-        $exeFiles = Get-ChildItem -Path "dist" -Filter "*.exe"
-        if ($exeFiles.Count -eq 0) {
-            Write-Error "Nuitka build completed but no executable file was generated in dist directory"
-            exit 1
-        }
-
-        Write-Host "Nuitka build completed successfully!"
-
-    - name: Verify generated executable
+    - name: Create zip package
       run: |
-        $version = "${{ steps.extract_version.outputs.version }}"
-
-        Write-Host "Looking for generated executable..."
-        # 查找所有生成的可执行文件
-        $exe_files = Get-ChildItem -Path "dist" -Filter "*.exe" | Sort-Object LastWriteTime -Descending
-
-        if ($exe_files.Count -eq 0) {
-            Write-Host "No executable files found in dist directory. Checking entire project..."
-            $exe_files = Get-ChildItem -Path . -Recurse -Filter "*.exe" | Where-Object { $_.Name -notlike "*.dll" -and $_.Name -notlike "*.sys" } | Sort-Object LastWriteTime -Descending
-
-            if ($exe_files.Count -eq 0) {
-                Write-Error "No executable files found in project"
-                exit 1
-            }
-        }
-
-        # 使用最新生成的可执行文件
-        $generated_exe = $exe_files[0]
-
-        Write-Host "Executable found:"
-        Write-Host "  Path: $($generated_exe.FullName)"
-        Write-Host "  Name: $($generated_exe.Name)"
-        Write-Host "  Size: $([math]::Round($generated_exe.Length / 1MB, 2)) MB"
-        Write-Host "  Version: $version"
-
-        # 设置环境变量以便后续步骤使用
-        echo "::set-output name=generated_exe_path::$($generated_exe.FullName)"
-        echo "::set-output name=generated_exe_name::$($generated_exe.Name)"
-      id: verify_executable
-
-    - name: Rename executable
-      run: |
-        $version = "${{ steps.extract_version.outputs.version }}"
-        $generated_exe_path = "${{ steps.verify_executable.outputs.generated_exe_path }}"
-        $generated_exe_name = "${{ steps.verify_executable.outputs.generated_exe_name }}"
-        $destination = "dist\QQFavoriteExtract_$version.exe"
-
-        Write-Host "Renaming from: $generated_exe_path"
-        Write-Host "Renaming to: $destination"
-
-        # 使用Rename-Item进行重命名
-        Rename-Item -Path $generated_exe_path -NewName "QQFavoriteExtract_$version.exe" -Force
-
-        # 验证新文件
-        if (Test-Path $destination) {
-            $size = [math]::Round((Get-Item $destination).Length / 1MB, 2)
-            Write-Host "Final executable ready: $destination ($size MB)"
-        } else {
-            Write-Error "Failed to rename executable"
-            exit 1
-        }
-
-    - name: Create additional artifacts (optional)
-      run: |
-        $version = "${{ steps.extract_version.outputs.version }}"
-
-        # 创建包含文档和可执行文件的 ZIP 包
+        $version = "${{ steps.build.outputs.version }}"
         $zipPath = "dist\QQFavoriteExtract_$version.zip"
-
         $filesToInclude = @(
             "dist\QQFavoriteExtract_$version.exe",
             "LICENSE",
             "README.md"
         ) | Where-Object { Test-Path $_ }
-
         Compress-Archive -Path $filesToInclude -DestinationPath $zipPath -Force
         Write-Host "Created package: $zipPath"
 
     - name: Upload standalone EXE as artifact
       uses: actions/upload-artifact@v4
       with:
-        name: QQFavoriteExtract-Windows-${{ steps.extract_version.outputs.version }}
+        name: QQFavoriteExtract-Windows-${{ steps.build.outputs.version }}
         path: |
-          dist/QQFavoriteExtract_${{ steps.extract_version.outputs.version }}.exe
-          dist/QQFavoriteExtract_${{ steps.extract_version.outputs.version }}.zip
+          dist/QQFavoriteExtract_${{ steps.build.outputs.version }}.exe
+          dist/QQFavoriteExtract_${{ steps.build.outputs.version }}.zip
         retention-days: 7
 
     - name: Upload to GitHub Release
@@ -262,17 +68,7 @@ jobs:
         draft: false
         prerelease: false
         files: |
-          dist/QQFavoriteExtract_${{ steps.extract_version.outputs.version }}.exe
-          dist/QQFavoriteExtract_${{ steps.extract_version.outputs.version }}.zip
+          dist/QQFavoriteExtract_${{ steps.build.outputs.version }}.exe
+          dist/QQFavoriteExtract_${{ steps.build.outputs.version }}.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Clean up temporary files
-      if: always()  # 总是运行清理步骤
-      run: |
-        Write-Host "Cleaning up temporary files..."
-        # 删除 Nuitka 生成的中间文件
-        Remove-Item -Path "__pycache__" -Recurse -Force -ErrorAction SilentlyContinue
-        Remove-Item -Path "*.build" -Recurse -Force -ErrorAction SilentlyContinue
-        Remove-Item -Path "*.dist" -Recurse -Force -ErrorAction SilentlyContinue
-        Write-Host "Cleanup completed."
