@@ -4,13 +4,20 @@
 from datetime import datetime
 
 from PyQt6.QtGui import QColor, QTextCharFormat, QTextCursor
-from PyQt6.QtWidgets import QFileDialog, QHBoxLayout, QLabel, QTextEdit, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QFileDialog, QHBoxLayout, QTextEdit, QVBoxLayout, QWidget
 
 from qfluentwidgets import (InfoBar, MessageBox, PrimaryPushButton, PushButton,
-                            SubtitleLabel, isDarkTheme)
+                            SubtitleLabel, isDarkTheme, qconfig)
 
 from src.app.signal_bus import signalBus
 from src.core.app_settings import cfg
+
+# 日志级别显示名（按定宽列对齐，便于阅读：INFO / WARNING / ERROR）
+LEVEL_LABELS = {
+    'info': 'INFO',
+    'warn': 'WARNING',
+    'error': 'ERROR',
+}
 
 
 def _level_colors():
@@ -49,6 +56,8 @@ class LogView(QWidget):
         header.addWidget(self.export_button)
         root.addLayout(header)
 
+        # 日志文本区：原生 QTextEdit 不随 qfluentwidgets 主题变色（深色模式残留白底），
+        # 这里显式设置主题色，并在主题切换时重刷。
         self.log_edit = QTextEdit(self)
         self.log_edit.setReadOnly(True)
         root.addWidget(self.log_edit, 1)
@@ -59,6 +68,20 @@ class LogView(QWidget):
         # 用户上翻时暂停自动滚动，回到底部恢复
         self.log_edit.verticalScrollBar().valueChanged.connect(self._on_scroll)
 
+        qconfig.themeChanged.connect(self._apply_theme_style)
+        self._apply_theme_style()
+
+    def _apply_theme_style(self):
+        """按当前主题刷新日志区背景/前景色，避免深色模式下残留白色背景。"""
+        if isDarkTheme():
+            self.log_edit.setStyleSheet(
+                'QTextEdit { background-color: #272727; color: #dcdcdc;'
+                ' border: 1px solid #3a3a3a; border-radius: 8px; }')
+        else:
+            self.log_edit.setStyleSheet(
+                'QTextEdit { background-color: #ffffff; color: #2a2a2a;'
+                ' border: 1px solid #e0e0e0; border-radius: 8px; }')
+
     def _on_scroll(self, value):
         scroll_bar = self.log_edit.verticalScrollBar()
         self._follow = value >= scroll_bar.maximum() - 30
@@ -66,12 +89,15 @@ class LogView(QWidget):
     def append_log(self, level, message):
         if not cfg.get(cfg.logEnabled):
             return
+        label = LEVEL_LABELS.get(level, level.upper())
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        line = f'[{timestamp}] {label:<7} {message}'
         color = _level_colors().get(level, _level_colors()['info'])
         cursor = self.log_edit.textCursor()
         cursor.movePosition(QTextCursor.MoveOperation.End)
         char_format = QTextCharFormat()
         char_format.setForeground(color)
-        cursor.insertText(message + '\n', char_format)
+        cursor.insertText(line + '\n', char_format)
         if self._follow:
             scroll_bar = self.log_edit.verticalScrollBar()
             scroll_bar.setValue(scroll_bar.maximum())

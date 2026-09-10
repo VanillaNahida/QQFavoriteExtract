@@ -119,7 +119,7 @@ class MainWindow(FluentWindow):
         if screen is None:
             return
         avail = screen.availableGeometry()
-        width = min(1280, avail.width())
+        width = min(1230, avail.width())
         height = min(800, avail.height())
         self.resize(width, height)
         # 以窗口边框几何中心对齐屏幕可用区域中心，避免标题栏/边框导致偏移

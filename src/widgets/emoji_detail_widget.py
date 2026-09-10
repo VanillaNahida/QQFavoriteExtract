@@ -2,14 +2,32 @@
 """右侧详情面板：大图/动图播放 + 属性信息。"""
 
 from PyQt6.QtCore import QSize, Qt, pyqtSignal
-from PyQt6.QtGui import QPixmap
+from PyQt6.QtGui import QColor, QPixmap
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
-from qfluentwidgets import BodyLabel, StrongBodyLabel
+from qfluentwidgets import BodyLabel, CardWidget, StrongBodyLabel, isDarkTheme
 
 from src.utils.pillow_gif_player import PillowGifPlayer
 
 PREVIEW_SIZE = 240
+
+
+class DetailPanelCard(CardWidget):
+    """表情详细预览悬浮卡片：背景改为高不透明度。
+
+    qfluentwidgets 原生 CardWidget 深色模式背景为 rgba(255,255,255,13)，
+    几乎全透明，悬浮在网格上时文字可读性差。此处提高不透明度，
+    深色模式用近实底深灰，浅色模式用近实底白，文字更易读。
+    """
+
+    def _normalBackgroundColor(self):
+        return QColor(40, 40, 40, 245) if isDarkTheme() else QColor(255, 255, 255, 245)
+
+    def _hoverBackgroundColor(self):
+        return self._normalBackgroundColor()
+
+    def _pressedBackgroundColor(self):
+        return self._normalBackgroundColor()
 
 
 class EmojiDetailWidget(QWidget):

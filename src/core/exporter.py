@@ -51,64 +51,71 @@ def export_emoji_files(
         if not src_file or not os.path.exists(src_file):
             continue
 
-        actual_ext = get_actual_extension(src_file)
-        filename_no_ext = os.path.splitext(os.path.basename(src_file))[0]
+        try:
+            actual_ext = get_actual_extension(src_file)
+            filename_no_ext = os.path.splitext(os.path.basename(src_file))[0]
 
-        # marketface 原文件无扩展名且经过加密，导出前必须在内存中恢复。
-        if folder_key == "marketface":
-            recovered = recover_marketface_data(src_file)
-            if recovered is None:
-                if log_callback:
-                    log_callback(f"跳过（无法解密或 GIF 校验失败）: {os.path.basename(src_file)}")
-                continue
-            file_data, _ = recovered
-            dest_file = _unique_dest_path(dst_dir, filename_no_ext, "gif")
-            with open(dest_file, "wb") as output_file:
-                output_file.write(file_data)
-            copied_count += 1
-            if log_callback:
-                log_callback(
-                    f"导出(marketface解密) [{copied_count}/{total_files}]: "
-                    f"{os.path.basename(src_file)} -> {os.path.basename(dest_file)}"
-                )
-        # 如果检测到是 APNG 格式的表情，将其转码为通用动图 GIF 导出
-        elif actual_ext and actual_ext.lower() == 'png' and is_apng_file(src_file):
-            dest_file = os.path.join(dst_dir, f"{filename_no_ext}.gif")
-            converted_path = convert_apng_to_gif(src_file, dest_file)
-            if converted_path:
+            # marketface 原文件无扩展名且经过加密，导出前必须在内存中恢复。
+            if folder_key == "marketface":
+                recovered = recover_marketface_data(src_file)
+                if recovered is None:
+                    if log_callback:
+                        log_callback(f"跳过（无法解密或 GIF 校验失败）: {os.path.basename(src_file)}")
+                    continue
+                file_data, _ = recovered
+                dest_file = _unique_dest_path(dst_dir, filename_no_ext, "gif")
+                with open(dest_file, "wb") as output_file:
+                    output_file.write(file_data)
                 copied_count += 1
                 if log_callback:
                     log_callback(
-                        f"导出(APNG转GIF) [{copied_count}/{total_files}]: "
+                        f"导出(marketface解密) [{copied_count}/{total_files}]: "
                         f"{os.path.basename(src_file)} -> {os.path.basename(dest_file)}"
                     )
+            # 如果检测到是 APNG 格式的表情，将其转码为通用动图 GIF 导出
+            elif actual_ext and actual_ext.lower() == 'png' and is_apng_file(src_file):
+                dest_file = os.path.join(dst_dir, f"{filename_no_ext}.gif")
+                converted_path = convert_apng_to_gif(src_file, dest_file)
+                if converted_path:
+                    copied_count += 1
+                    if log_callback:
+                        log_callback(
+                            f"导出(APNG转GIF) [{copied_count}/{total_files}]: "
+                            f"{os.path.basename(src_file)} -> {os.path.basename(dest_file)}"
+                        )
+                else:
+                    # 转换失败回退为直接复制 PNG
+                    dest_file = _unique_dest_path(dst_dir, filename_no_ext, "png")
+                    shutil.copy2(src_file, dest_file)
+                    copied_count += 1
+                    if log_callback:
+                        log_callback(
+                            f"导出(回退PNG) [{copied_count}/{total_files}]: "
+                            f"{os.path.basename(src_file)} -> {os.path.basename(dest_file)}"
+                        )
             else:
-                # 转换失败回退为直接复制 PNG
-                dest_file = _unique_dest_path(dst_dir, filename_no_ext, "png")
+                filename = os.path.basename(src_file)
+                if actual_ext:
+                    # 如果原文件名没有正确的后缀，就补上
+                    if not filename.lower().endswith(f".{actual_ext}"):
+                        dest_file = os.path.join(dst_dir, f"{filename}.{actual_ext}")
+                    else:
+                        dest_file = os.path.join(dst_dir, filename)
+                else:
+                    dest_file = os.path.join(dst_dir, filename)
+
                 shutil.copy2(src_file, dest_file)
                 copied_count += 1
                 if log_callback:
                     log_callback(
-                        f"导出(回退PNG) [{copied_count}/{total_files}]: "
+                        f"导出 [{copied_count}/{total_files}]: "
                         f"{os.path.basename(src_file)} -> {os.path.basename(dest_file)}"
                     )
-        else:
-            filename = os.path.basename(src_file)
-            if actual_ext:
-                # 如果原文件名没有正确的后缀，就补上
-                if not filename.lower().endswith(f".{actual_ext}"):
-                    dest_file = os.path.join(dst_dir, f"{filename}.{actual_ext}")
-                else:
-                    dest_file = os.path.join(dst_dir, filename)
-            else:
-                dest_file = os.path.join(dst_dir, filename)
-
-            shutil.copy2(src_file, dest_file)
-            copied_count += 1
+        except Exception as exc:
+            # 单个文件导出失败不中断批量流程，把详细原因输出到日志页
             if log_callback:
                 log_callback(
-                    f"导出 [{copied_count}/{total_files}]: "
-                    f"{os.path.basename(src_file)} -> {os.path.basename(dest_file)}"
+                    f"错误：导出文件 {os.path.basename(src_file)} 失败：{exc}"
                 )
 
         if progress_callback:

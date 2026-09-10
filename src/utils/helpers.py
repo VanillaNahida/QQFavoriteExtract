@@ -132,3 +132,14 @@ def get_asset_path(name):
     return os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
         'assets', name)
+
+
+def format_exc():
+    """返回当前线程最近一次异常的完整堆栈文本（供日志页输出详细信息）。
+
+    必须在 except 块内调用；无活动异常时返回空串。
+    """
+    import traceback
+    text = traceback.format_exc()
+    text = text.strip()
+    return text if text and text != 'NoneType: None' else ''

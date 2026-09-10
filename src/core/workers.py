@@ -162,7 +162,7 @@ class ExportWorker(WorkerBase):
     """批量导出表情（marketface 解密 / APNG 转 GIF / 复制）。"""
 
     progress = pyqtSignal(int, int)          # (current, total)
-    log = pyqtSignal(str)                    # 导出明细日志（已节流）
+    log = pyqtSignal(str, str)               # (level, message)
     finished = pyqtSignal(int, int, str)     # (generation, successCount, outputDir)
 
     def __init__(self, generation, file_paths, dst_dir, folder_key):
@@ -187,10 +187,16 @@ class ExportWorker(WorkerBase):
         self.progress.emit(current, total)
 
     def _on_log(self, message):
-        # 节流推送：跳过/失败类日志全量推送，常规日志每 5 条推一次
+        # 按内容推断级别：错误/跳过类日志全量推送，常规日志每 5 条推一次
+        if '错误' in message:
+            level = 'error'
+        elif '跳过' in message:
+            level = 'warn'
+        else:
+            level = 'info'
         self._log_index += 1
-        if '跳过' in message or self._log_index % 5 == 0:
-            self.log.emit(message)
+        if level != 'info' or self._log_index % 5 == 0:
+            self.log.emit(level, message)
 
 
 class SortWorker(WorkerBase):

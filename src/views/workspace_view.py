@@ -26,8 +26,8 @@ from src.core.emoji_scanner import get_actual_extension
 from src.core.user_service import UserService
 from src.core.workers import (DetailLoaderWorker, ExportWorker, PreviewLoaderWorker,
                               ScanWorker, SortWorker, start_worker)
-from src.utils.helpers import get_asset_path, sanitize_filename
-from src.widgets.emoji_detail_widget import EmojiDetailWidget
+from src.utils.helpers import format_exc, get_asset_path, sanitize_filename
+from src.widgets.emoji_detail_widget import DetailPanelCard, EmojiDetailWidget
 from src.widgets.emoji_preview_widget import EmojiEntry, EmojiPreviewWidget
 from src.widgets.image_viewer import LargeImageViewer
 from src.widgets.rotating_chevron_button import RotatingChevronButton
@@ -123,7 +123,7 @@ class WorkspaceView(QWidget):
         self.category_combo = ComboBox(self)
         form.addRow(category_label, self.category_combo)
 
-        self.scan_button = PrimaryPushButton('扫描表情包预览', self)
+        self.scan_button = PrimaryPushButton('扫描表情包并预览', self)
         self.scan_button.setFixedHeight(36)
         form.addRow('', self.scan_button)
 
@@ -190,7 +190,8 @@ class WorkspaceView(QWidget):
         self.content_layout.addWidget(self.preview_host, 1)
 
         # 详情抽屉（悬浮覆盖层）：不占布局空间，展开时从右侧滑入覆盖预览区
-        self.detail_card = CardWidget(self.preview_host)
+        # 使用高不透明度卡片，深色模式下悬浮文字更易读
+        self.detail_card = DetailPanelCard(self.preview_host)
         detail_layout = QVBoxLayout(self.detail_card)
         detail_layout.setContentsMargins(16, 12, 16, 12)
         self.detail_widget = EmojiDetailWidget(self.detail_card)
@@ -200,7 +201,7 @@ class WorkspaceView(QWidget):
         root.addLayout(self.content_layout, 1)
 
         # ---- 底部状态行 ----
-        self.status_label = CaptionLabel('请先选择用户与分类，然后点击「扫描表情包预览」')
+        self.status_label = CaptionLabel('请先选择用户与分类，然后点击「扫描表情包并预览」')
         root.addWidget(self.status_label)
 
     def _build_empty_page(self):
@@ -218,7 +219,7 @@ class WorkspaceView(QWidget):
                 Qt.TransformationMode.SmoothTransformation)
         icon_label.setPixmap(icon_pixmap)
         icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        text_label = BodyLabel('这里空空如也~\n请先选择用户与分类后，点击上方「扫描表情包预览」开始')
+        text_label = BodyLabel('这里空空如也~\n请先选择用户与分类后，点击上方「扫描表情包并预览」开始')
         text_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addStretch(2)
         layout.addWidget(icon_label)
@@ -618,8 +619,8 @@ class WorkspaceView(QWidget):
     def _on_export_progress(self, current, total):
         self.tooltip.update(f'{current}/{total} 已导出…')
 
-    def _on_export_log(self, message):
-        signalBus.logMessage.emit('info', message)
+    def _on_export_log(self, level, message):
+        signalBus.logMessage.emit(level, message)
 
     def _on_export_finished(self, gen, success, output_dir):
         if gen == self.generation:
@@ -639,13 +640,13 @@ class WorkspaceView(QWidget):
         try:
             subprocess.Popen(['explorer', '/select,', os.path.normpath(path)])
         except Exception as e:
-            signalBus.logMessage.emit('error', f'无法打开资源管理器: {e}')
+            signalBus.logMessage.emit('error', f'无法打开资源管理器: {e}\n{format_exc()}')
 
     def _open_in_explorer(self, directory):
         try:
             subprocess.Popen(['explorer', os.path.abspath(directory)])
         except Exception as e:
-            signalBus.logMessage.emit('error', f'无法打开资源管理器: {e}')
+            signalBus.logMessage.emit('error', f'无法打开资源管理器: {e}\n{format_exc()}')
 
     def _on_open_large_image(self, path):
         """双击预览图：打开大图查看窗口（GIF 动图可播放）。"""
@@ -665,7 +666,7 @@ class WorkspaceView(QWidget):
 
     def _on_preview_status(self, loaded, total, selected):
         if total == 0:
-            self.status_label.setText('请先选择用户与分类，然后点击「扫描表情包预览」')
+            self.status_label.setText('请先选择用户与分类，然后点击「扫描表情包并预览」')
         else:
             self.status_label.setText(f'已加载 {loaded}/{total} · 已选中 {selected}')
 
