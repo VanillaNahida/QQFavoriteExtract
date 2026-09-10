@@ -124,7 +124,7 @@ def format_mtime(timestamp):
 
 def get_asset_path(name):
     """返回 src/assets 下资源的绝对路径（兼容开发环境与 Nuitka 打包环境）。
-
+    
     Nuitka onefile 会将 --include-data-dir 的数据解包到临时目录，模块 __file__
     在该目录下保持源码相对布局（src/utils/helpers.py），因此用 __file__ 反推
     src 目录即可定位到 assets。
@@ -132,6 +132,17 @@ def get_asset_path(name):
     return os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
         'assets', name)
+
+
+def get_font_path(name):
+    """返回 src/fonts 下字体的绝对路径（兼容开发环境与 Nuitka 打包环境）。
+
+    定位方式与 get_asset_path 一致：Nuitka onefile 将 --include-data-files
+    内嵌的字体解包到临时目录后仍保持 src/fonts 相对布局。
+    """
+    return os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        'fonts', name)
 
 
 def format_exc():
