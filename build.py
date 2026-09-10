@@ -16,6 +16,15 @@ import re
 import subprocess
 import sys
 
+# GitHub Actions Windows runner 控制台代码页为 cp1252，打印中文会报
+# UnicodeEncodeError；强制 UTF-8 输出（Python 3.7+ 支持 reconfigure）
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, 'reconfigure'):
+        try:
+            _stream.reconfigure(encoding='utf-8', errors='replace')
+        except Exception:
+            pass
+
 
 def extract_version():
     """按优先级解析版本号：--build-version 参数 > BUILD_VERSION 环境变量 >
