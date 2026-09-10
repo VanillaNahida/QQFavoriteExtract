@@ -26,7 +26,10 @@ jobs:
         enable-cache: true
 
     - name: Install dependencies with uv
-      run: uv sync --frozen --extra build
+      # uv.lock 不被 git 跟踪，CI 检出后不存在，需先 uv lock 生成锁文件再以 frozen 安装
+      run: |
+        uv lock
+        uv sync --frozen --extra build
 
     - name: Extract version from tag using Python
       id: extract_version
