@@ -11,7 +11,7 @@ from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest
 from src.utils.helpers import get_app_data_dir
 
 NICKNAME_API = "https://uapis.cn/api/v1/social/qq/userinfo?qq={qq}"
-CACHE_EXPIRE_SECONDS = 3600  # 昵称缓存 1 小时后过期
+CACHE_EXPIRE_SECONDS = 3600 * 24  # 昵称缓存 1 天后过期
 REQUEST_TIMEOUT_MS = 10000
 
 

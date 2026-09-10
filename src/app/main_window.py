@@ -109,7 +109,11 @@ class MainWindow(FluentWindow):
     # ---------- 新手教程 ----------
 
     def _maybe_show_newbie_tutorial(self):
-        """首次使用（tutorialDone 为 False）时弹窗询问是否查看新手教程。"""
+        """首次使用（tutorialDone 为 False）时弹窗询问是否查看新手教程。
+
+        只有用户明确点击「查看教程」或「跳过」后才记录 tutorialDone；
+        直接关闭弹窗/主窗口则不记录，下次启动仍会询问。
+        """
         if cfg.get(cfg.tutorialDone):
             return
         box = MessageBox(
@@ -119,10 +123,20 @@ class MainWindow(FluentWindow):
         )
         box.yesButton.setText('查看教程')
         box.cancelButton.setText('跳过')
-        if box.exec():
+
+        # 通过按钮点击信号记录用户的明确选择（'yes' / 'skip'），
+        # 与 exec() 返回值解耦：直接关闭弹窗不会触发任一按钮
+        decided = {'value': None}
+        box.yesButton.clicked.connect(lambda: decided.update(value='yes'))
+        box.cancelButton.clicked.connect(lambda: decided.update(value='skip'))
+
+        box.exec()
+
+        if decided['value'] == 'yes':
             run_newbie_tutorial(self)
-        # 无论是否查看，首次询问后都不再自动弹出（可在设置页重置后重温）
-        cfg.set(cfg.tutorialDone, True)
+        # 仅明确选择过（查看教程或跳过）才持久化，避免启动后直接关闭也被标记
+        if decided['value']:
+            cfg.set(cfg.tutorialDone, True)
 
     def initNavigation(self):
         self.addSubInterface(self.workspace_view, FIF.EMOJI_TAB_SYMBOLS, '工作台')
