@@ -1,0 +1,163 @@
+name: Build Windows EXE (Manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号（留空则从 pyproject.toml 读取）'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows-exe:
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup uv
+      uses: astral-sh/setup-uv@v5
+      with:
+        python-version: '3.12'
+        enable-cache: true
+
+    - name: Install dependencies with uv
+      run: uv sync --frozen --extra build
+
+    - name: Resolve version
+      id: extract_version
+      run: |
+        uv run python -c "
+        import os
+        import re
+        import tomllib
+
+        version = os.environ.get('INPUT_VERSION', '').strip()
+        if version:
+            print(f'Using manually input version: {version}')
+        else:
+            with open('pyproject.toml', 'rb') as f:
+                version = tomllib.load(f).get('project', {}).get('version', '1.0.0')
+            print(f'Read version from pyproject.toml: {version}')
+
+        if not re.match(r'\d+(?:\.\d+)+', version):
+            raise ValueError(f'Invalid version format: {version}')
+
+        # 转换为 Nuitka 格式 (1.2.3 -> 1.2.3.0)
+        parts = version.split('.')
+        while len(parts) < 4:
+            parts.append('0')
+        nuitka_version = '.'.join(parts[:4])
+
+        print(f'Final version: {version}')
+        print(f'Nuitka version format: {nuitka_version}')
+        print(f'::set-output name=version::{version}')
+        print(f'::set-output name=nuitka_version::{nuitka_version}')
+        "
+      env:
+        INPUT_VERSION: ${{ github.event.inputs.version }}
+
+    - name: Create directory for output
+      run: |
+        New-Item -ItemType Directory -Force -Path dist
+
+    - name: Build executable with Nuitka
+      run: |
+        $version = "${{ steps.extract_version.outputs.version }}"
+        $nuitka_version = "${{ steps.extract_version.outputs.nuitka_version }}"
+
+        Write-Host "Starting Nuitka build process..."
+        Write-Host "Project version: $version"
+        Write-Host "File version: $nuitka_version"
+
+        $nuitkaArgs = @(
+            "--onefile",
+            "--remove-output",
+            "--assume-yes-for-downloads",
+            "--output-dir=dist",
+            "--windows-console-mode=disable",
+            "--windows-icon-from-ico=img/icon.ico",
+            "--copyright=VanillaNahida",
+            "--company-name=VanillaNahida",
+            "--lto=yes",
+            "--enable-plugin=pyqt6",
+            "--include-package=src",
+            "--onefile-tempdir-spec={TEMP}\qqfavorite_$version",
+            "--include-data-files=LICENSE=LICENSE",
+            "--include-data-files=README.md=README.md",
+            "--include-data-dir=img=img",
+            "--file-version=$nuitka_version",
+            "--product-version=$nuitka_version",
+            "--product-name=QQFavoriteExtract",
+            "--file-description=QQ表情包导出工具",
+            "src/main.py"
+        )
+
+        Write-Host "Starting Nuitka build..."
+        $buildOutput = & uv run nuitka @nuitkaArgs 2>&1
+        $exitCode = $LASTEXITCODE
+        Write-Host $buildOutput
+
+        if ($exitCode -ne 0) {
+            Write-Error "Nuitka build failed with exit code: $exitCode"
+            exit $exitCode
+        }
+
+        $exeFiles = Get-ChildItem -Path "dist" -Filter "*.exe"
+        if ($exeFiles.Count -eq 0) {
+            Write-Error "Nuitka build completed but no executable file was generated in dist directory"
+            exit 1
+        }
+        Write-Host "Nuitka build completed successfully!"
+
+    - name: Rename executable
+      run: |
+        $version = "${{ steps.extract_version.outputs.version }}"
+        $generated_exe = Get-ChildItem -Path "dist" -Filter "*.exe" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+        $destination = "dist\QQFavoriteExtract_$version.exe"
+
+        Rename-Item -Path $generated_exe.FullName -NewName "QQFavoriteExtract_$version.exe" -Force
+
+        if (Test-Path $destination) {
+            $size = [math]::Round((Get-Item $destination).Length / 1MB, 2)
+            Write-Host "Final executable ready: $destination ($size MB)"
+        } else {
+            Write-Error "Failed to rename executable"
+            exit 1
+        }
+
+    - name: Create zip package
+      run: |
+        $version = "${{ steps.extract_version.outputs.version }}"
+        $zipPath = "dist\QQFavoriteExtract_$version.zip"
+        $filesToInclude = @(
+            "dist\QQFavoriteExtract_$version.exe",
+            "LICENSE",
+            "README.md"
+        ) | Where-Object { Test-Path $_ }
+        Compress-Archive -Path $filesToInclude -DestinationPath $zipPath -Force
+        Write-Host "Created package: $zipPath"
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: QQFavoriteExtract-Windows-${{ steps.extract_version.outputs.version }}
+        path: |
+          dist/QQFavoriteExtract_${{ steps.extract_version.outputs.version }}.exe
+          dist/QQFavoriteExtract_${{ steps.extract_version.outputs.version }}.zip
+        retention-days: 7
+
+    - name: Clean up temporary files
+      if: always()
+      run: |
+        Write-Host "Cleaning up temporary files..."
+        Remove-Item -Path "__pycache__" -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -Path "*.build" -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -Path "*.dist" -Recurse -Force -ErrorAction SilentlyContinue
+        Write-Host "Cleanup completed."
