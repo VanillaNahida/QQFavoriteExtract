@@ -69,7 +69,8 @@ class MainWindow(FluentWindow):
         self.titleBar.buttonLayout.insertWidget(0, self.theme_button)
 
     def _on_theme_button_clicked(self):
-        toggleTheme(save=True)
+        # lazy=True：只重绘可见控件，加快主题切换并降低与气泡阴影的交互风险
+        toggleTheme(save=True, lazy=True)
         is_dark = isDarkTheme()
         self.theme_button.setToolTip('切换为浅色主题' if is_dark else '切换为深色主题')
 

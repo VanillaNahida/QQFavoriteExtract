@@ -7,6 +7,7 @@ from functools import partial
 from html import escape as _html_escape
 
 from PyQt6.QtCore import QEasingCurve, QPropertyAnimation, QRect, QTimer, Qt
+from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (QFileDialog, QFormLayout, QHBoxLayout, QLabel,
                              QStackedWidget, QVBoxLayout, QWidget)
 
@@ -25,7 +26,7 @@ from src.core.emoji_scanner import get_actual_extension
 from src.core.user_service import UserService
 from src.core.workers import (DetailLoaderWorker, ExportWorker, PreviewLoaderWorker,
                               ScanWorker, SortWorker, start_worker)
-from src.utils.helpers import sanitize_filename
+from src.utils.helpers import get_asset_path, sanitize_filename
 from src.widgets.emoji_detail_widget import EmojiDetailWidget
 from src.widgets.emoji_preview_widget import EmojiEntry, EmojiPreviewWidget
 from src.widgets.image_viewer import LargeImageViewer
@@ -207,9 +208,17 @@ class WorkspaceView(QWidget):
         layout = QVBoxLayout(page)
         layout.setSpacing(12)
         icon_label = QLabel(page)
-        icon_label.setPixmap(FIF.EMOJI_TAB_SYMBOLS.icon().pixmap(72, 72))
+        # 空状态占位图：使用本地素材图片（等比缩放，避免非正方形图片拉伸）
+        icon_pixmap = QPixmap(get_asset_path('ClanChat_Emoji_Dummy01.png'))
+        if icon_pixmap.isNull():
+            icon_pixmap = FIF.EMOJI_TAB_SYMBOLS.icon().pixmap(160, 160)
+        else:
+            icon_pixmap = icon_pixmap.scaled(
+                160, 160, Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation)
+        icon_label.setPixmap(icon_pixmap)
         icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        text_label = BodyLabel('选择用户与分类后，点击上方「扫描表情包预览」开始')
+        text_label = BodyLabel('这里空空如也~\n请先选择用户与分类后，点击上方「扫描表情包预览」开始')
         text_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addStretch(2)
         layout.addWidget(icon_label)

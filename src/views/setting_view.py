@@ -120,7 +120,7 @@ class SettingView(ScrollArea):
 
     def _on_theme_changed(self, ci):
         """主题变更：应用主题并同步持久化到 cfg"""
-        setTheme(qconfig.get(ci))
+        setTheme(qconfig.get(ci), lazy=True)
         sync_theme_to_cfg()
 
     def _choose_save_path(self):

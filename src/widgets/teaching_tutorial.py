@@ -11,7 +11,8 @@ from PyQt6.QtCore import QObject, QTimer, pyqtSignal
 from PyQt6.QtWidgets import QHBoxLayout, QWidget
 
 from qfluentwidgets import (PrimaryPushButton, PushButton, TeachingTip,
-                            TeachingTipTailPosition, TeachingTipView)
+                            TeachingTipTailPosition, TeachingTipView,
+                            qconfig)
 
 from src.core.app_settings import cfg
 
@@ -68,15 +69,42 @@ class NewbieTutorial(QObject):
         self._index = 0
         self._tip = None
         self.on_finished = on_finished
+        # 主题切换会触发全量样式重绘；透明+阴影的气泡窗口在此过程中
+        # 会发生 QGraphicsEffect 重绘风暴导致界面卡死（打包版尤甚）。
+        # themeChanged 在重绘前同步发出，此时先隐藏/关闭气泡以避让。
+        qconfig.themeChanged.connect(self._on_theme_changed)
 
     def start(self):
         self._index = 0
         self._show_step()
 
+    def _on_theme_changed(self):
+        """主题即将切换：立即关闭当前气泡，待样式重绘完成后再展示当前步骤。"""
+        tip, self._tip = self._tip, None
+        if tip is not None:
+            try:
+                tip.hide()
+                tip.close()
+            except RuntimeError:
+                pass
+        if self._index < len(self.steps):
+            QTimer.singleShot(350, self._reshow_current_step)
+
+    def _reshow_current_step(self):
+        """主题切换完成后重新展示当前步骤气泡（控制器可能已被销毁）。"""
+        try:
+            self._show_step()
+        except RuntimeError:
+            pass
+
     def _show_step(self):
         if self._index >= len(self.steps):
             self._finish()
             return
+        if self._tip is not None:
+            # 防御：避免主题切换后的定时重展示与用户操作造成气泡叠加
+            self._tip.close()
+            self._tip = None
         step = self.steps[self._index]
         is_last = self._index == len(self.steps) - 1
         view = TutorialTipView(step.title, step.content,
@@ -99,6 +127,10 @@ class NewbieTutorial(QObject):
         self._finish()
 
     def _finish(self):
+        try:
+            qconfig.themeChanged.disconnect(self._on_theme_changed)
+        except Exception:
+            pass
         cfg.set(cfg.tutorialDone, True)
         if self.on_finished:
             self.on_finished()

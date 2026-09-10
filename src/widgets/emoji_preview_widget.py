@@ -103,6 +103,13 @@ class EmojiPreviewWidget(QListWidget):
         self.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
+        # 网格背景跟随主题：原生 QListWidget 默认用浅色调色板（Base=白），
+        # 深色模式下会残留白色背景。置为透明后透出下层卡片/窗口主题色。
+        self.setStyleSheet(
+            'QListWidget { background: transparent; outline: none; border: none; }'
+            'QListWidget::item { background: transparent; }'
+        )
+
         # 自定义绘制：缩略图居中 + 选中仅外侧圆角边框（避免白色框框）
         self.setItemDelegate(EmojiItemDelegate(self))
 
