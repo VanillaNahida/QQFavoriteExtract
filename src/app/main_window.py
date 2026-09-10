@@ -3,15 +3,17 @@
 
 import os
 
-from PyQt6.QtCore import QTimer
-from PyQt6.QtGui import QGuiApplication, QIcon
+from PyQt6.QtCore import QTimer, QUrl
+from PyQt6.QtGui import QDesktopServices, QGuiApplication, QIcon
 
 from qfluentwidgets import (FluentIcon as FIF, FluentTitleBarButton,
                             FluentWindow, MessageBox, NavigationItemPosition,
                             SystemThemeListener, Theme, isDarkTheme,
                             setTheme, toggleTheme)
 
+from src import __version__
 from src.core.app_settings import cfg
+from src.core.update_checker import GITHUB_RELEASES_URL, UpdateChecker
 from src.views.about_view import AboutView
 from src.views.log_view import LogView
 from src.views.setting_view import SettingView
@@ -45,6 +47,9 @@ class MainWindow(FluentWindow):
         # 首次使用：窗口显示后询问是否查看新手教程
         QTimer.singleShot(0, self._maybe_show_newbie_tutorial)
 
+        # 启动时自动检查更新（可在设置页关闭）
+        QTimer.singleShot(2000, self._auto_check_update)
+
     def connectSignals(self):
         pass
 
@@ -77,6 +82,29 @@ class MainWindow(FluentWindow):
     def _on_system_theme_changed(self):
         # 仅当主题模式为「跟随系统」时，SystemThemeListener 才会发出该信号
         setTheme(Theme.AUTO, lazy=True)
+
+    # ---------- 启动时检查更新 ----------
+
+    def _auto_check_update(self):
+        """按设置决定是否静默检查更新：有新版本才弹窗，失败/无更新不打扰。"""
+        if not cfg.get(cfg.autoCheckUpdate):
+            return
+        self._update_checker = UpdateChecker(self)
+        self._update_checker.finished.connect(self._on_auto_update_result)
+        self._update_checker.check()
+
+    def _on_auto_update_result(self, has_new, latest, error):
+        if not has_new:
+            return
+        box = MessageBox(
+            '发现新版本',
+            f'检测到新版本 v{latest}（当前 v{__version__}），是否前往下载页？',
+            self,
+        )
+        box.yesButton.setText('前往下载')
+        box.cancelButton.setText('取消')
+        if box.exec():
+            QDesktopServices.openUrl(QUrl(GITHUB_RELEASES_URL))
 
     # ---------- 新手教程 ----------
 

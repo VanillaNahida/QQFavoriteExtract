@@ -109,7 +109,7 @@ class LogView(QWidget):
         box.cancelButton.setText('取消')
         if box.exec():
             self.log_edit.clear()
-            InfoBar.success('已清空', '日志已清空', parent=self)
+            InfoBar.success('已清空', '日志已清空', duration=5000, parent=self)
 
     def _export_logs(self):
         default_name = f"日志_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
@@ -120,6 +120,6 @@ class LogView(QWidget):
         try:
             with open(path, 'w', encoding='utf-8') as f:
                 f.write(self.log_edit.toPlainText())
-            InfoBar.success('导出成功', f'日志已导出到 {path}', parent=self)
+            InfoBar.success('导出成功', f'日志已导出到 {path}', duration=5000, parent=self)
         except Exception as e:
-            InfoBar.error('导出失败', str(e), parent=self)
+            InfoBar.error('导出失败', str(e), duration=5000, parent=self)

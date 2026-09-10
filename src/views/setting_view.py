@@ -48,10 +48,20 @@ class SettingView(ScrollArea):
             parent=personal_group,
         )
         personal_group.addSettingCard(self.theme_card)
+
+        # 启动时自动检查更新（默认开启）
+        self.auto_update_card = SwitchSettingCard(
+            FIF.UPDATE,
+            '启动时自动检查更新',
+            '启动软件时自动比对 GitHub Release 版本，发现新版本时弹窗提醒',
+            cfg.autoCheckUpdate,
+            personal_group,
+        )
+        personal_group.addSettingCard(self.auto_update_card)
         v.addWidget(personal_group)
 
         # 工作台：默认保存路径
-        workspace_group = SettingCardGroup('工作台', content)
+        workspace_group = SettingCardGroup('保存', content)
         self.save_path_card = PushSettingCard(
             '选择文件夹',
             FIF.DOWNLOAD,
@@ -128,15 +138,15 @@ class SettingView(ScrollArea):
         if directory:
             cfg.set(cfg.savePath, directory)
             self.save_path_card.setContent(directory)
-            InfoBar.success('已保存', f'默认保存路径：{directory}', parent=self)
+            InfoBar.success('已保存', f'默认保存路径：{directory}', duration=5000, parent=self)
 
     def _clear_cache(self):
         from src.core.user_service import UserService
         service = UserService(self)
         if service.clear_cache():
-            InfoBar.success('已清除', '昵称缓存已清除', parent=self)
+            InfoBar.success('已清除', '昵称缓存已清除', duration=5000, parent=self)
         else:
-            InfoBar.info('提示', '缓存文件不存在或清除失败', parent=self)
+            InfoBar.info('提示', '缓存文件不存在或清除失败', duration=5000, parent=self)
         service.deleteLater()
 
     def _open_cache_folder(self):
@@ -145,11 +155,11 @@ class SettingView(ScrollArea):
             try:
                 subprocess.Popen(['explorer', '/select,', os.path.normpath(cache_path)])
             except Exception as e:
-                InfoBar.error('打开失败', f'无法打开缓存文件夹: {e}', parent=self)
+                InfoBar.error('打开失败', f'无法打开缓存文件夹: {e}', duration=5000, parent=self)
         else:
-            InfoBar.info('提示', '缓存文件不存在', parent=self)
+            InfoBar.info('提示', '缓存文件不存在', duration=5000, parent=self)
 
     def _reset_tutorial(self):
         """重置新手教程标记：下次启动软件时重新弹出教程询问。"""
         cfg.set(cfg.tutorialDone, False)
-        InfoBar.success('已重置', '下次启动软件时将重新弹出新手教程', parent=self)
+        InfoBar.success('已重置', '下次启动软件时将重新弹出新手教程', duration=5000, parent=self)

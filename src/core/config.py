@@ -12,11 +12,11 @@ DEFAULT_INI_PATH = r'C:\Users\Public\Documents\Tencent\QQ\UserDataInfo.ini'
 # 常见分类的显示名称映射
 CATEGORY_NAME_MAPPING = {
     'personal_emoji': '个人收藏表情 (personal_emoji)',
-    'emoji-recv': '接收到表情 [谨慎加载,内含巨量表情] (emoji-recv)',
-    'marketface': '商店表情 (marketface)',
+    'emoji-recv': '接收到的表情 [谨慎加载,内含巨量表情] (emoji-recv)',
+    'marketface': '表情商店表情 (marketface)',
     'BaseEmojiSyastems': '系统表情 [已支持APNG动图转GIF导出] (BaseEmojiSyastems)',
     'emoji-related': '候选表情 [打字时系统推荐] (emoji-related)',
-    'pic': '收藏图片 [注意：包含聊天接收的图片，和收藏图片混杂在一起，暂无法避免] (Pic)',
+    'pic': '收藏的图片 [注意：包含聊天接收的图片，和收藏图片混杂在一起，暂无法避免] (Pic)',
 }
 
 

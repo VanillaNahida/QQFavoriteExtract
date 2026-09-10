@@ -1,7 +1,7 @@
 # coding=utf-8
 """右侧详情面板：大图/动图播放 + 属性信息。"""
 
-from PyQt6.QtCore import QSize, Qt, pyqtSignal
+from PyQt6.QtCore import QSize, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QColor, QPixmap
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
@@ -39,6 +39,7 @@ class EmojiDetailWidget(QWidget):
         super().__init__(parent=parent)
         self._player = PillowGifPlayer(self)
         self._collapsed = False
+        self._static_pixmap = None   # 原始静态大图，面板尺寸变化时据此重新缩放
 
         self.setFixedWidth(300)
         layout = QVBoxLayout(self)
@@ -52,16 +53,16 @@ class EmojiDetailWidget(QWidget):
         header.addStretch()
         layout.addLayout(header)
 
-        # 大图预览
+        # 大图预览：占据 header 与信息行之间的可用空间，随面板高度缩放（最大 240）
         self.previewLabel = QLabel()
         self.previewLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.previewLabel.setFixedSize(PREVIEW_SIZE, PREVIEW_SIZE)
+        self.previewLabel.setMinimumSize(1, 1)
+        self.previewLabel.setMaximumSize(PREVIEW_SIZE, PREVIEW_SIZE)
         self.previewLabel.setStyleSheet('background: transparent;')
-        layout.addWidget(self.previewLabel, alignment=Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.previewLabel, 1)
         self._player.attach(self.previewLabel)
-        self._player.set_target_size(QSize(PREVIEW_SIZE, PREVIEW_SIZE))
 
-        # 属性信息
+        # 属性信息：自动换行，长文件名等连续文本由工作台注入 <wbr> 断行机会
         self.infoLabel = BodyLabel('未选中表情')
         self.infoLabel.setWordWrap(True)
         self.infoLabel.setTextFormat(Qt.TextFormat.RichText)
@@ -69,6 +70,11 @@ class EmojiDetailWidget(QWidget):
         layout.addWidget(self.infoLabel)
 
         layout.addStretch()
+
+    def resizeEvent(self, e):
+        super().resizeEvent(e)
+        # 面板高度变化（配置区展开/收起、窗口缩放）后，图片需跟随缩放
+        QTimer.singleShot(0, self._adapt_preview_size)
 
     # ---------- 折叠 ----------
 
@@ -86,6 +92,7 @@ class EmojiDetailWidget(QWidget):
 
     def stop_playback(self):
         self._player.clear()
+        self._static_pixmap = None
 
     def show_placeholder(self, text='未选中表情'):
         self.stop_playback()
@@ -99,6 +106,7 @@ class EmojiDetailWidget(QWidget):
             self.previewLabel.setText('图片加载失败')
             return
         self._player.play()
+        QTimer.singleShot(0, self._adapt_preview_size)
 
     def play_file(self, path):
         """从文件播放动图（GIF / 转换后的临时 GIF）。"""
@@ -113,20 +121,31 @@ class EmojiDetailWidget(QWidget):
             self.previewLabel.setText('图片加载失败')
             return
         self._player.play()
+        QTimer.singleShot(0, self._adapt_preview_size)
 
     def show_image(self, path):
-        """显示静态大图。"""
+        """显示静态大图（保留原图，面板尺寸变化时重新等比缩放）。"""
         self.stop_playback()
         pixmap = QPixmap(path)
         if pixmap.isNull():
             self.previewLabel.setText('图片加载失败')
             return
-        scaled = pixmap.scaled(
-            PREVIEW_SIZE, PREVIEW_SIZE,
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation,
-        )
-        self.previewLabel.setPixmap(scaled)
+        self._static_pixmap = pixmap
+        QTimer.singleShot(0, self._adapt_preview_size)
+
+    def _adapt_preview_size(self):
+        """按标签当前可用空间重新缩放图片/动图，避免图片溢出到下方文字。"""
+        target = self.previewLabel.size()
+        if target.width() < 20 or target.height() < 20:
+            return
+        if self._player.is_active:
+            self._player.set_target_size(target)
+            self._player.refresh()
+        elif self._static_pixmap is not None:
+            scaled = self._static_pixmap.scaled(
+                target, Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation)
+            self.previewLabel.setPixmap(scaled)
 
     def set_info(self, html):
         self.infoLabel.setText(html)

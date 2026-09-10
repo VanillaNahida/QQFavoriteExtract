@@ -11,6 +11,7 @@ from qfluentwidgets import FluentIcon as FIF, TransparentToolButton
 
 from src.utils.pillow_gif_player import PillowGifPlayer
 
+# 兜底上限：主窗口不可用（找不到）时使用；正常情况以主窗口尺寸为上限
 MAX_SIZE = QSize(1000, 700)
 MIN_DIALOG = QSize(360, 300)
 # 内容区 = 标签区 + 左右边距(16*2) + 头部按钮行(32) + 间距(10) + 上下边距(12*2)
@@ -26,7 +27,7 @@ class LargeImageViewer(QDialog):
         self._player = PillowGifPlayer(self)
         self._pixmap = None          # 原始静态图片，窗口尺寸变化时据此重新适配
 
-        self.setWindowTitle('表情大图预览')
+        self.setWindowTitle('表情大图预览（按ESC关闭）')
         self.resize(720, 540)
         self.setMinimumSize(MIN_DIALOG)
 
@@ -126,11 +127,19 @@ class LargeImageViewer(QDialog):
         """按图片宽高比调整窗口内容区尺寸，让图片完整显示而不被裁剪。"""
         if not img_size.isValid() or img_size.width() <= 0 or img_size.height() <= 0:
             return
-        screen_geo = self.screen().availableGeometry() if self.screen() else None
+        # 宽高上限：主窗口可用时不超过主窗口（各留 80px 边距），否则退回常量上限
         max_w, max_h = MAX_SIZE.width(), MAX_SIZE.height()
+        main = self._main_window()
+        if main is not None:
+            max_w = min(max_w, main.width() - 80)
+            max_h = min(max_h, main.height() - 80)
+        screen_geo = self.screen().availableGeometry() if self.screen() else None
         if screen_geo:
             max_w = min(max_w, screen_geo.width() - 80)
             max_h = min(max_h, screen_geo.height() - 80)
+        # 下限兜底：不能小于最小窗口尺寸
+        max_w = max(max_w, MIN_DIALOG.width())
+        max_h = max(max_h, MIN_DIALOG.height())
         ratio = img_size.width() / img_size.height()
         if ratio >= 1:
             w = max_w
@@ -144,8 +153,19 @@ class LargeImageViewer(QDialog):
             if w > max_w:
                 w = max_w
                 h = int(max_w / ratio)
+        # 窗口总尺寸上限与主窗口一致，用户也无法手动拖大
+        self.setMaximumSize(max_w + CONTENT_EXTRA_W, max_h + CONTENT_EXTRA_H)
         self.resize(max(w + CONTENT_EXTRA_W, MIN_DIALOG.width()),
                     max(h + CONTENT_EXTRA_H, MIN_DIALOG.height()))
+
+    def _main_window(self):
+        """沿 parent 链向上查找主窗口（LargeImageViewer 自身是独立 QDialog 窗口）。"""
+        w = self.parent()
+        while w is not None:
+            if w.metaObject().className() == 'MainWindow':
+                return w
+            w = w.parent()
+        return None
 
     def _refresh_preview_size(self):
         """窗口尺寸变化后，让图片/动图重新适配标签实际尺寸，避免显示不全。"""

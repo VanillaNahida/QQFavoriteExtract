@@ -34,6 +34,22 @@ from src.widgets.rotating_chevron_button import RotatingChevronButton
 from src.widgets.state_tool_tip import StateToolTipManager
 
 
+_ZERO_WIDTH_SPACE = '\u200b'
+
+
+def _escape_wbr(text, chunk=16):
+    """HTML 转义，并给过长的连续无空白文本插入零宽空格（U+200B）作为断行点。
+
+    Qt QLabel 的 RichText 不把 <wbr> 当作断行点，需改用零宽空格让
+    QTextDocument 在任意位置断行。先按原始文本分块再逐块转义，
+    避免转义实体（如 &amp;）被切断。
+    """
+    if len(text) <= chunk:
+        return _html_escape(text)
+    parts = [text[i:i + chunk] for i in range(0, len(text), chunk)]
+    return _ZERO_WIDTH_SPACE.join(_html_escape(p) for p in parts)
+
+
 class WorkspaceView(QWidget):
     """表情提取工作台页面。"""
 
@@ -53,6 +69,7 @@ class WorkspaceView(QWidget):
         self._config_anim = None    # 配置面板展开/收起动画
         self._detail_anim = None    # 详情面板展开/收起动画
         self._drawer_width_cache = 0
+        self._image_viewer = None   # 大图预览窗口（单例复用，关闭仅隐藏）
 
         # 服务
         self.user_service = UserService(self)
@@ -307,7 +324,7 @@ class WorkspaceView(QWidget):
     def _warn_manual_path(self):
         """自动检测失败时，右上角通知用户手动选择聊天记录位置。"""
         if self.isVisible():
-            InfoBar.warning('未找到QQ数据目录', '自动检测失败，请手动选择聊天记录位置', parent=self)
+            InfoBar.warning('未找到QQ数据目录', '自动检测失败，请手动选择聊天记录位置', duration=5000, parent=self)
         else:
             # 启动阶段窗口尚未显示：推迟到事件循环开始（窗口已展示）后再弹出
             QTimer.singleShot(0, self._warn_manual_path)
@@ -315,7 +332,7 @@ class WorkspaceView(QWidget):
     def _notify_auto_detected(self, path):
         """自动检测到QQ数据目录时，右上角通知已自动定位并填充路径。"""
         if self.isVisible():
-            InfoBar.success('成功！', f'已为您自动定位QQ数据目录，路径已自动填充：\n{path}', parent=self)
+            InfoBar.success('成功！', f'已为您自动定位QQ数据目录，路径已自动填充：\n{path}', duration=5000, parent=self)
         else:
             # 启动阶段窗口尚未显示：推迟到事件循环开始（窗口已展示）后再弹出
             QTimer.singleShot(0, lambda: self._notify_auto_detected(path))
@@ -377,19 +394,19 @@ class WorkspaceView(QWidget):
     def on_scan_clicked(self):
         qq = self.user_combo.currentData()
         if not qq:
-            InfoBar.warning('提示', '请先选择一个用户', parent=self)
+            InfoBar.warning('提示', '请先选择一个用户', duration=5000, parent=self)
             return
         folder = self.category_combo.currentData()
         if not folder:
-            InfoBar.warning('提示', '请先选择一个表情分类', parent=self)
+            InfoBar.warning('提示', '请先选择一个表情分类', duration=5000, parent=self)
             return
         userdata = self.userdata_save_path_cache or get_userdata_save_path()
         if not userdata:
-            InfoBar.error('错误', '未找到聊天数据目录，请手动选择数据目录', parent=self)
+            InfoBar.error('错误', '未找到聊天数据目录，请手动选择数据目录', duration=5000, parent=self)
             return
         emoji_path = get_category_path(userdata, qq, folder)
         if not emoji_path.exists():
-            InfoBar.error('错误', f'未找到该分类的本地目录:\n{emoji_path}', parent=self)
+            InfoBar.error('错误', f'未找到该分类的本地目录:\n{emoji_path}', duration=5000, parent=self)
             return
 
         # 取消旧任务，进入新一轮（代际令牌 +1）
@@ -419,14 +436,14 @@ class WorkspaceView(QWidget):
             return
         if not paths:
             self.tooltip.finish('扫描完成', '未发现有效表情')
-            InfoBar.warning('扫描完成', '未筛选出任何有效的表情包图片', parent=self)
+            InfoBar.warning('扫描完成', '未筛选出任何有效的表情包图片', duration=5000, parent=self)
             return
         entries = [EmojiEntry(path=p) for p in paths]
         self.preview_widget.set_entries(entries)
         self._show_preview_or_empty()
         self._collapse_config()
         self.tooltip.finish('扫描完成', f'共发现 {len(paths)} 个有效表情')
-        InfoBar.success('扫描完成', f'发现 {len(paths)} 个有效表情', parent=self)
+        InfoBar.success('扫描完成', f'发现 {len(paths)} 个有效表情', duration=5000, parent=self)
         signalBus.logMessage.emit('info', f'扫描并筛选完毕，共发现 {len(paths)} 个有效表情图片')
         self._start_preview_batch()
 
@@ -532,12 +549,11 @@ class WorkspaceView(QWidget):
             if ext == 'png' and is_apng_file(path):
                 format_display = 'APNG (动态图片)'
 
-        info_text = f"<b>文件名:</b><br/>{_html_escape(file_name)}<br/><br/>"
+        info_text = f"<b>文件名:</b><br/>{_escape_wbr(file_name)}<br/><br/>"
         info_text += f"<b>格式:</b> {_html_escape(format_display)}<br/>"
         info_text += f"<b>大小:</b> {size_kb:.2f} KB<br/><br/>"
-        # 路径较长：插入 <wbr> 词断机会，配合自动换行完整显示
-        path_html = _html_escape(path)
-        info_text += f"<b>保存路径:</b><br/>{'<wbr>'.join(path_html)}"
+        # 路径较长：插入零宽空格断行点，配合自动换行完整显示
+        info_text += f"<b>保存路径:</b><br/>{_escape_wbr(path)}"
         return info_text
 
     def _load_detail(self, path):
@@ -567,27 +583,27 @@ class WorkspaceView(QWidget):
     def _on_export_current(self):
         path = self.preview_widget.get_current_path()
         if not path:
-            InfoBar.warning('提示', '请先点选一个表情', parent=self)
+            InfoBar.warning('提示', '请先点选一个表情', duration=5000, parent=self)
             return
         self._confirm_and_export([path], '提取当前表情')
 
     def _on_export_selected(self):
         paths = self.preview_widget.get_selected_paths()
         if not paths:
-            InfoBar.warning('提示', '请先在预览区选中表情后再导出', parent=self)
+            InfoBar.warning('提示', '请先在预览区选中表情后再导出', duration=5000, parent=self)
             return
         self._confirm_and_export(paths, '提取的选中表情')
 
     def _on_export_all(self):
         if not self.preview_widget.entries:
-            InfoBar.warning('提示', '请先扫描表情包', parent=self)
+            InfoBar.warning('提示', '请先扫描表情包', duration=5000, parent=self)
             return
         paths = [e.path for e in self.preview_widget.entries]
         self._confirm_and_export(paths, '提取的全部表情')
 
     def _confirm_and_export(self, paths, suffix):
         if not self.save_path:
-            InfoBar.warning('提示', '请先选择保存路径', parent=self)
+            InfoBar.warning('提示', '请先选择保存路径', duration=5000, parent=self)
             return
         display_name = self.user_service.get_display_name(self.user_combo.currentData() or '')
         safe_name = sanitize_filename(display_name) or 'unknown'
@@ -625,7 +641,7 @@ class WorkspaceView(QWidget):
     def _on_export_finished(self, gen, success, output_dir):
         if gen == self.generation:
             self.tooltip.finish('导出完成', f'成功导出 {success} 个表情')
-            InfoBar.success('导出完成', f'成功导出 {success} 个表情', parent=self)
+            InfoBar.success('导出完成', f'成功导出 {success} 个表情', duration=5000, parent=self)
             signalBus.logMessage.emit('info', f'导出完成：成功 {success} 个 -> {output_dir}')
             self._open_in_explorer(output_dir)
         self._exporting = False
@@ -649,12 +665,19 @@ class WorkspaceView(QWidget):
             signalBus.logMessage.emit('error', f'无法打开资源管理器: {e}\n{format_exc()}')
 
     def _on_open_large_image(self, path):
-        """双击预览图：打开大图查看窗口（GIF 动图可播放）。"""
+        """双击预览图：复用同一个大图查看窗口加载新图片（窗口尺寸随图片变化）。
+
+        有且只有一个大图窗口；窗口关闭（Esc/X）仅隐藏，再次点击时复用并加载新图。
+        """
         if not path or not os.path.exists(path):
-            InfoBar.warning('提示', '文件不存在或已被移动', parent=self)
+            InfoBar.warning('提示', '文件不存在或已被移动', duration=5000, parent=self)
             return
-        dialog = LargeImageViewer(self)
-        dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        dialog = self._image_viewer
+        if dialog is None:
+            # 不设置 WA_DeleteOnClose：关闭仅隐藏，便于复用；随主窗口一起销毁
+            dialog = LargeImageViewer(self)
+            dialog.destroyed.connect(self._on_viewer_destroyed)
+            self._image_viewer = dialog
         if self.current_folder_key == 'marketface':
             from src.core.marketface_handler import recover_marketface_preview
             data = recover_marketface_preview(path)
@@ -663,6 +686,12 @@ class WorkspaceView(QWidget):
             ext = get_actual_extension(path) or os.path.splitext(path)[1].lstrip('.').lower()
             dialog.show_payload({'kind': 'path', 'path': path, 'ext': ext})
         dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
+
+    def _on_viewer_destroyed(self):
+        """大图窗口被销毁（主窗口关闭）时清空引用，避免悬垂。"""
+        self._image_viewer = None
 
     def _on_preview_status(self, loaded, total, selected):
         if total == 0:
@@ -811,8 +840,18 @@ class WorkspaceView(QWidget):
         anim.setEasingCurve(QEasingCurve.Type.OutCubic)
         anim.setStartValue(height_from)
         anim.setEndValue(height_to)
-        if on_finish is not None:
-            anim.finished.connect(on_finish)
+
+        def _finish():
+            if on_finish is not None:
+                on_finish()
+            # 配置卡隐藏/显示等布局变化完成后，最终校准一次抽屉位置
+            self._layout_detail_drawer(self.detail_widget.is_collapsed(), animate=False)
+
+        # 配置区高度变化会改变预览区高度，悬浮详情抽屉需同步跟随，
+        # 否则配置展开/收起后抽屉位置与图片错位
+        anim.valueChanged.connect(
+            lambda _v: self._layout_detail_drawer(self.detail_widget.is_collapsed(), animate=False))
+        anim.finished.connect(_finish)
         anim.start()
         self._config_anim = anim
 

@@ -29,10 +29,36 @@ class AppConfig(QConfig):
     # 新手教程：是否已完成/关闭（False 时下次启动会弹出询问）
     tutorialDone = ConfigItem("App", "tutorialDone", False)
 
+    # 更新：启动时自动检查 GitHub Release 是否有新版本（默认开启）
+    autoCheckUpdate = ConfigItem("App", "autoCheckUpdate", True)
+
 
 cfg = AppConfig()
 config_file = os.path.join(get_app_data_dir(), "config.json")
 qconfig.load(config_file, cfg)
+
+
+def _ensure_default_theme_mode():
+    """首次运行（配置文件中未保存过主题模式）时默认「跟随系统」。
+
+    必须读取配置文件判断，而非 qconfig 内存值：qconfig.load 会用默认值
+    初始化内存，无法区分「文件里没有该键」与「用户明确保存了浅色」。
+    已保存过主题模式的用户保持其原有选择。
+    """
+    import json
+    from qfluentwidgets import Theme
+
+    try:
+        with open(config_file, encoding='utf-8') as f:
+            saved = json.load(f)
+    except Exception:
+        saved = {}
+    group = saved.get('QFluentWidgets')
+    if not isinstance(group, dict) or 'ThemeMode' not in group:
+        qconfig.set(qconfig.themeMode, Theme.AUTO)
+
+
+_ensure_default_theme_mode()
 
 
 def sync_theme_from_cfg():
