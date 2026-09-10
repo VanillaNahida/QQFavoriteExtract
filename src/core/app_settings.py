@@ -26,6 +26,9 @@ class AppConfig(QConfig):
     # 日志
     logEnabled = ConfigItem("Log", "logEnabled", True)
 
+    # 新手教程：是否已完成/关闭（False 时下次启动会弹出询问）
+    tutorialDone = ConfigItem("App", "tutorialDone", False)
+
 
 cfg = AppConfig()
 config_file = os.path.join(get_app_data_dir(), "config.json")

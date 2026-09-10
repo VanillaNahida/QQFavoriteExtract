@@ -95,6 +95,18 @@ class SettingView(ScrollArea):
         log_group.addSettingCard(self.log_enabled_card)
         v.addWidget(log_group)
 
+        # 帮助：新手教程
+        help_group = SettingCardGroup('帮助', content)
+        self.tutorial_card = PushSettingCard(
+            '重温教程',
+            FIF.EDUCATION,
+            '新手教程',
+            '点击后重启软件时将再次弹出新手教程',
+            help_group,
+        )
+        help_group.addSettingCard(self.tutorial_card)
+        v.addWidget(help_group)
+
         v.addStretch(1)
 
         self._connect_signals()
@@ -104,6 +116,7 @@ class SettingView(ScrollArea):
         self.save_path_card.clicked.connect(self._choose_save_path)
         self.cache_card.clicked.connect(self._clear_cache)
         self.open_cache_button.clicked.connect(self._open_cache_folder)
+        self.tutorial_card.clicked.connect(self._reset_tutorial)
 
     def _on_theme_changed(self, ci):
         """主题变更：应用主题并同步持久化到 cfg"""
@@ -135,3 +148,8 @@ class SettingView(ScrollArea):
                 InfoBar.error('打开失败', f'无法打开缓存文件夹: {e}', parent=self)
         else:
             InfoBar.info('提示', '缓存文件不存在', parent=self)
+
+    def _reset_tutorial(self):
+        """重置新手教程标记：下次启动软件时重新弹出教程询问。"""
+        cfg.set(cfg.tutorialDone, False)
+        InfoBar.success('已重置', '下次启动软件时将重新弹出新手教程', parent=self)
