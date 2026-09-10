@@ -5,8 +5,7 @@ from PyQt6.QtCore import QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
-from qfluentwidgets import (BodyLabel, FluentIcon as FIF, StrongBodyLabel,
-                            TransparentToolButton)
+from qfluentwidgets import BodyLabel, StrongBodyLabel
 
 from src.utils.pillow_gif_player import PillowGifPlayer
 
@@ -33,12 +32,6 @@ class EmojiDetailWidget(QWidget):
         self.titleLabel = StrongBodyLabel('表情详细预览')
         header.addWidget(self.titleLabel)
         header.addStretch()
-        self.collapseButton = TransparentToolButton(self)
-        self.collapseButton.setFixedSize(28, 28)
-        self.collapseButton.setIcon(FIF.CHEVRON_DOWN_MED)
-        self.collapseButton.setToolTip('收起/展开详情面板')
-        self.collapseButton.clicked.connect(self.toggle_collapsed)
-        header.addWidget(self.collapseButton)
         layout.addLayout(header)
 
         # 大图预览
@@ -61,14 +54,10 @@ class EmojiDetailWidget(QWidget):
 
     # ---------- 折叠 ----------
 
-    def toggle_collapsed(self):
-        self.set_collapsed(not self._collapsed)
-
     def set_collapsed(self, collapsed, persist=True):
         self._collapsed = collapsed
         # 面板整体显隐由工作台的卡片宽度动画控制，这里不再直接隐藏自身，
         # 否则动画期间内容会瞬间消失并导致卡片宽度动画失真。
-        self.collapseButton.setIcon(FIF.CHEVRON_RIGHT if collapsed else FIF.CHEVRON_DOWN_MED)
         if persist:
             self.collapsedChanged.emit(collapsed)
 

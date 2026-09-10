@@ -9,7 +9,7 @@ from qfluentwidgets import (BodyLabel, CaptionLabel, FluentIcon as FIF,
 
 from src import __version__
 
-GITHUB_URL = 'https://github.com/VanillaNahida'
+GITHUB_URL = 'https://github.com/VanillaNahida/QQFavoriteExtract'
 LICENSE_URL = 'https://github.com/VanillaNahida/QQFavoriteExtract/blob/main/LICENSE'
 
 
@@ -52,7 +52,7 @@ class AboutView(QWidget):
         links.setSpacing(8)
         github_link = HyperlinkButton(GITHUB_URL, 'GitHub 主页')
         github_link.setFixedHeight(36)
-        license_link = HyperlinkButton(LICENSE_URL, '开源许可证 (MIT)')
+        license_link = HyperlinkButton(LICENSE_URL, '开源许可证')
         license_link.setFixedHeight(36)
         links.addWidget(github_link)
         links.addWidget(license_link)
