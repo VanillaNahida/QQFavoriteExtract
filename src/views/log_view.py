@@ -47,7 +47,7 @@ class LogView(QWidget):
         root.setSpacing(12)
 
         header = QHBoxLayout()
-        title = SubtitleLabel('操作日志')
+        title = SubtitleLabel('操作日志 （实验性）')
         header.addWidget(title)
         header.addStretch()
         self.clear_button = PrimaryPushButton('清空日志', self)
