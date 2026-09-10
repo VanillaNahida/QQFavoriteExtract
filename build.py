@@ -82,9 +82,10 @@ def build_with_nuitka():
         '--enable-plugin=pyqt6',
         '--enable-plugin=upx',
         '--onefile-no-compression',
+        '--include-package=src',
         f'--file-version={nuitka_version}',
         f'--product-version={nuitka_version}',
-        'main_gui.py'
+        'src/main.py'
     ]
     
     print(f"Running command: {' '.join(cmd)}")

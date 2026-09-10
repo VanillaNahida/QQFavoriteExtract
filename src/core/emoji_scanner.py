@@ -3,8 +3,10 @@
 import os
 import re
 from pathlib import Path
-from emoji_converter import is_apng_file
-from marketface_handler import is_marketface_candidate, recover_marketface_data
+from typing import Callable, List, Optional
+
+from src.core.emoji_converter import is_apng_file
+from src.core.marketface_handler import is_marketface_candidate, recover_marketface_data
 
 FILE_SIGNATURES = {
     'jpg': (b'\xff\xd8\xff', b'\xff\xd8\xff\xe0', b'\xff\xd8\xff\xe1'),
@@ -19,6 +21,16 @@ FILE_SIGNATURES = {
     'heic': (b'ftypheic', b'ftypheix', b'ftyphevc', b'ftyphevx'),
     'avif': (b'ftypavif', b'ftypavis'),
 }
+
+
+class ScanCancelled(Exception):
+    """扫描被外部取消时抛出。"""
+    pass
+
+
+def _check_cancel(cancel_check):
+    if cancel_check and cancel_check():
+        raise ScanCancelled()
 
 
 def get_actual_extension(file_path):
@@ -99,8 +111,9 @@ def _get_emoji_group_key(file_path_str, emoji_root_path):
     clean_name = re.sub(r'_\d+$', '', file_base)
 
     # 过滤掉通用的子目录名称 (如 apng, png, ori, thumb 等)
-    normalized_dir = re.sub(r'[\\/](apng|png|ori|raw|thumb|preview)$', '', rel_dir, flags=re.IGNORECASE)
-    if normalized_dir in ['.', 'apng', 'png', 'ori', 'raw', 'thumb', 'preview']:
+    # 兼容两种结构：{emoji_id}/Ori  与  Ori/{emoji_id}，以及单独的 Ori 目录名
+    normalized_dir = re.sub(r'(?:[\\/]|^)(apng|png|ori|raw|thumb|preview)$', '', rel_dir, flags=re.IGNORECASE)
+    if normalized_dir.lower() in ['.', 'apng', 'png', 'ori', 'raw', 'thumb', 'preview']:
         normalized_dir = ''
 
     # 组合分组键
@@ -112,7 +125,8 @@ def _get_emoji_group_key(file_path_str, emoji_root_path):
     return group_key
 
 
-def scan_marketface_folder(emoji_root_path):
+def scan_marketface_folder(emoji_root_path, progress_callback: Optional[Callable[[int, int], None]] = None,
+                           cancel_check: Optional[Callable[[], bool]] = None):
     """
     扫描并验证 QQNT marketface 原图。
 
@@ -125,26 +139,74 @@ def scan_marketface_folder(emoji_root_path):
 
     recovered_files = []
     try:
+        candidates = []
         for root, _, files in os.walk(str(emoji_path)):
             for filename in files:
                 file_path = os.path.join(root, filename)
-                if not is_marketface_candidate(file_path):
-                    continue
-                if recover_marketface_data(file_path) is not None:
-                    recovered_files.append(file_path)
+                if is_marketface_candidate(file_path):
+                    candidates.append(file_path)
+        total = len(candidates)
+        for idx, file_path in enumerate(candidates):
+            _check_cancel(cancel_check)
+            if progress_callback:
+                progress_callback(idx + 1, total)
+            if recover_marketface_data(file_path) is not None:
+                recovered_files.append(file_path)
+    except ScanCancelled:
+        raise
     except Exception:
         return []
 
     return sorted(recovered_files)
 
 
-def scan_emoji_folder(emoji_root_path, selected_folder):
+def scan_pic_folder(pic_root_path, progress_callback: Optional[Callable[[int, int], None]] = None,
+                    cancel_check: Optional[Callable[[], bool]] = None):
+    """
+    扫描 QQ 收藏图片目录（Pic/日期命名文件夹/Ori 下的原图）。
+
+    只收集位于 Ori 目录下的真实图片文件（魔数校验），
+    排除 Thumb 缩略图与 ThumbTemp 临时文件。
+    """
+    pic_root = Path(pic_root_path)
+    if not pic_root.exists():
+        return []
+
+    # 1. 先枚举全部 Ori 目录下的文件（轻量目录遍历）
+    candidates = []
+    try:
+        for root, _, files in os.walk(str(pic_root)):
+            if os.path.basename(root).lower() != 'ori':
+                continue
+            for filename in files:
+                candidates.append(os.path.join(root, filename))
+    except Exception:
+        return []
+
+    # 2. 魔数校验，只保留真实图片文件
+    images = []
+    total = len(candidates)
+    for idx, file_path in enumerate(candidates):
+        _check_cancel(cancel_check)
+        if progress_callback:
+            progress_callback(idx + 1, total)
+        if get_actual_extension(file_path):
+            images.append(file_path)
+
+    return sorted(images)
+
+
+def scan_emoji_folder(emoji_root_path, selected_folder,
+                      progress_callback: Optional[Callable[[int, int], None]] = None,
+                      cancel_check: Optional[Callable[[], bool]] = None):
     """
     针对不同 QQNT 表情分类，全量安全扫描并利用智能评分算法筛选出最优质的表情图片文件列表。
     自动剔除冗余子帧/切片，动图自动优选，且保证不会遗漏任何有效表情。
     """
     if selected_folder.lower() == "marketface":
-        return scan_marketface_folder(emoji_root_path)
+        return scan_marketface_folder(emoji_root_path, progress_callback, cancel_check)
+    if selected_folder.lower() == "pic":
+        return scan_pic_folder(emoji_root_path, progress_callback, cancel_check)
     emoji_path = Path(emoji_root_path)
     if not emoji_path.exists():
         return []
@@ -161,8 +223,12 @@ def scan_emoji_folder(emoji_root_path, selected_folder):
     # 2. 真实图片校验与分组智能竞争
     # groups: { group_key: (best_file_path, best_score) }
     groups = {}
+    total = len(raw_files)
 
-    for file_path_str in raw_files:
+    for idx, file_path_str in enumerate(raw_files):
+        _check_cancel(cancel_check)
+        if progress_callback:
+            progress_callback(idx + 1, total)
         actual_ext = get_actual_extension(file_path_str)
         if not actual_ext:
             # 不是有效图片格式（如 .json, .ini, .db），直接忽略

@@ -67,7 +67,7 @@ def convert_apng_to_gif(apng_path, output_gif_path=None):
         im = Image.open(apng_path)
         frames = []
         durations = []
-        
+
         # 逐帧提取
         for frame in ImageSequence.Iterator(im):
             # 保持 RGBA 色彩与透明通道

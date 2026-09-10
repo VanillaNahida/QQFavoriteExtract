@@ -1,0 +1,25 @@
+[project]
+name = "qq-favorite-extract"
+version = "1.0.0"
+description = "QQ收藏表情批量提取工具"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+dependencies = [
+    "PyQt6>=6.5",
+    "PyQt6-Fluent-Widgets>=1.7.0",
+    "chardet>=5.2.0",
+    "requests>=2.31.0",
+    "Pillow>=9.0.0",
+]
+
+[project.optional-dependencies]
+build = [
+    "nuitka>=2.8.9",
+    "ordered-set",
+    "zstandard",
+]
+
+# 本项目仅作为应用运行，不作为可安装的 Python 包发布
+[tool.uv]
+package = false

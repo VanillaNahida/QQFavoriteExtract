@@ -8,3 +8,6 @@ nuitka-crash-report.xml
 error.log
 venv/
 .venv/
+uv.lock
+.trae/
+qfluentwidgets-example/
