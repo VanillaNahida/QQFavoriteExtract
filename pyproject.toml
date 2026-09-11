@@ -1,6 +1,6 @@
 [project]
 name = "qq-favorite-extract"
-version = "1.5.0"
+version = "1.5.1"
 description = "QQ收藏表情批量提取工具"
 readme = "README.md"
 requires-python = ">=3.9"

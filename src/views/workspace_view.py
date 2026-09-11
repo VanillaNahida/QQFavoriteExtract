@@ -13,8 +13,9 @@ from PyQt6.QtWidgets import (QFileDialog, QFormLayout, QHBoxLayout, QLabel,
 
 from qfluentwidgets import (BodyLabel, CaptionLabel, CardWidget, ComboBox,
                             FluentIcon as FIF, InfoBar, LineEdit, MessageBox,
-                            PrimaryPushButton, PushButton, StrongBodyLabel,
-                            SubtitleLabel)
+                            PopupTeachingTip, PrimaryPushButton, PushButton,
+                            StrongBodyLabel, SubtitleLabel, TeachingTipTailPosition,
+                            TransparentPushButton)
 
 from src.app.signal_bus import signalBus
 from src.core.app_settings import cfg
@@ -70,6 +71,7 @@ class WorkspaceView(QWidget):
         self._detail_anim = None    # 详情面板展开/收起动画
         self._drawer_width_cache = 0
         self._image_viewer = None   # 大图预览窗口（单例复用，关闭仅隐藏）
+        self._help_tip = None       # 当前显示的问号教学气泡（复用单例，点击重开）
 
         # 服务
         self.user_service = UserService(self)
@@ -135,10 +137,27 @@ class WorkspaceView(QWidget):
         form.addRow(save_path_label, save_row)
 
         self.user_combo = ComboBox(self)
-        form.addRow(user_label, self.user_combo)
+        user_row = QHBoxLayout()
+        user_row.setSpacing(4)
+        user_row.addWidget(self.user_combo, 1)
+        user_row.addWidget(self._create_help_button(
+            '没显示用户？',
+            '没有显示用户？',
+            '1. 请确认「数据路径」已指向 QQ 聊天数据目录（Tencent Files文件夹）。\n'
+            '2. 请确保你使用的是新版的QQNT而不是怀旧版QQ。\n'))
+        form.addRow(user_label, user_row)
 
         self.category_combo = ComboBox(self)
-        form.addRow(category_label, self.category_combo)
+        category_row = QHBoxLayout()
+        category_row.setSpacing(4)
+        category_row.addWidget(self.category_combo, 1)
+        category_row.addWidget(self._create_help_button(
+            '没有表情分类？',
+            '下拉框没有表情分类？',
+            '1. 请确保你使用的是新版的QQNT而不是怀旧版QQ。\n'
+            '2. 需要在QQ内加载过对应的表情包才可扫描到。\n'
+            '3. 若仍为空，请执行操作2后重启软件。'))
+        form.addRow(category_label, category_row)
 
         self.scan_button = PrimaryPushButton('扫描表情包并预览', self)
         self.scan_button.setFixedHeight(36)
@@ -220,6 +239,40 @@ class WorkspaceView(QWidget):
         # ---- 底部状态行 ----
         self.status_label = CaptionLabel('请先选择用户与分类，然后点击「扫描表情包并预览」')
         root.addWidget(self.status_label)
+
+    # ---------- 问号帮助按钮 ----------
+
+    def _create_help_button(self, tooltip, title, content):
+        """创建带图标的透明帮助按钮：悬浮提示 + 点击弹出自主排查教学气泡。"""
+        btn = TransparentPushButton(FIF.QUESTION, '帮助', self.config_card)
+        btn.setToolTip(tooltip)
+        btn.clicked.connect(lambda: self._show_help_tip(btn, title, content))
+        return btn
+
+    def _show_help_tip(self, target, title, content):
+        """在按钮旁弹出教学气泡；重复点击时先关闭旧气泡再重开。
+
+        使用 PopupTeachingTip.create：Popup 窗口点击外部空白自动关闭；
+        其内部同时连接 view.closed 信号，右上角叉号亦可正常关闭
+        （TeachingTip.make 不会连接该信号）。
+        """
+        if self._help_tip is not None:
+            try:
+                self._help_tip.close()
+            except RuntimeError:
+                pass
+            self._help_tip = None
+        tip = PopupTeachingTip.create(
+            target, title, content, FIF.QUESTION,
+            isClosable=True, duration=-1,
+            tailPosition=TeachingTipTailPosition.TOP,
+            parent=self.window())
+        # 气泡自毁（点击外部/关闭按钮）后清空引用，避免悬垂
+        tip.destroyed.connect(self._on_help_tip_destroyed)
+        self._help_tip = tip
+
+    def _on_help_tip_destroyed(self):
+        self._help_tip = None
 
     def _build_empty_page(self):
         page = QWidget(self)
