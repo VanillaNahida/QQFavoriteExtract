@@ -29,8 +29,9 @@
 # 程序界面
 
 <br>
-
-<div align="center">
+<details>
+  <summary>长图较多，请点击展开查看</summary>
+  <div align="center">
   <img width="640" alt="image" src="https://github.com/user-attachments/assets/9275c76f-1506-4f7c-b270-f97993180088" />  
   <p>程序主界面（浅色）</p> 
   
@@ -39,7 +40,11 @@
 
   <img width="640" alt="image" src="https://github.com/user-attachments/assets/e48edd75-3960-420e-8f6a-33744c396060" />
   <p>表情预览</p> 
-</div>
+  
+  <img width="640" alt="image" src="https://github.com/user-attachments/assets/6a3126c3-7f04-43a5-8643-4c50066eaaa5" />
+  <p>加载动画</p>
+  </div>
+</details>
 
 # 特点 ✨ 
 
