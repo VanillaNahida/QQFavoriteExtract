@@ -11,6 +11,7 @@ from qfluentwidgets import (InfoBar, MessageBox, PrimaryPushButton, PushButton,
 
 from src.app.signal_bus import signalBus
 from src.core.app_settings import cfg
+from src.utils.helpers import to_display_path
 
 # 日志级别显示名（按定宽列对齐，便于阅读：INFO / WARNING / ERROR）
 LEVEL_LABELS = {
@@ -120,6 +121,6 @@ class LogView(QWidget):
         try:
             with open(path, 'w', encoding='utf-8') as f:
                 f.write(self.log_edit.toPlainText())
-            InfoBar.success('导出成功', f'日志已导出到 {path}', duration=5000, parent=self)
+            InfoBar.success('导出成功', f'日志已导出到 {to_display_path(path)}', duration=5000, parent=self)
         except Exception as e:
             InfoBar.error('导出失败', str(e), duration=5000, parent=self)

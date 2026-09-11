@@ -39,6 +39,17 @@ def sanitize_filename(name):
     return name.strip()
 
 
+def to_display_path(path):
+    """将路径统一为反斜杠分隔的显示形式（Windows 用户习惯）。
+
+    仅用于 UI 展示层，内部文件操作仍使用原始路径（os.path / Path），
+    避免影响跨平台兼容。
+    """
+    if not path:
+        return path
+    return str(path).replace('/', '\\')
+
+
 def is_content_valid(content, min_chinese=1):
     """验证内容是否包含至少一个中文字符（避免误判为拉丁编码）"""
     chinese_chars = sum('\u4e00' <= char <= '\u9fff' for char in content)

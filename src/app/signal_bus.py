@@ -13,6 +13,9 @@ class SignalBus(QObject):
     # 状态栏
     statusChanged = pyqtSignal(str)
 
+    # 保存路径变更（工作台 / 设置页双向同步）
+    savePathChanged = pyqtSignal(str)          # (path)
+
     # 扫描
     scanProgress = pyqtSignal(int, int)      # (current, total)
     scanFinished = pyqtSignal(list)          # (paths)

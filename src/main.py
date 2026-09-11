@@ -6,7 +6,7 @@
 
 import sys
 
-from PyQt6.QtGui import QFontDatabase
+from PyQt6.QtGui import QFont, QFontDatabase
 from PyQt6.QtWidgets import QApplication
 
 from qfluentwidgets import setFontFamilies
@@ -17,20 +17,28 @@ from src.core.app_settings import cfg, sync_theme_from_cfg
 from src.utils.helpers import get_font_path
 
 # 内置 UI 字体（构建时随 exe 内嵌，见 build.py --include-data-files）
-UI_FONT_FILE = 'MiSans-Semibold.ttf'
+# 常规 + 粗体两级字重：Medium 命中常规文本，Semibold 命中加粗文本，Qt 按字重自动匹配
+UI_FONT_FILES = ('MiSans-Medium.ttf', 'MiSans-Semibold.ttf')
 
 
 def _apply_builtin_font():
-    """注册内置 MiSans 字体并设为全局 UI 字体；加载失败时静默回退系统字体。"""
-    path = get_font_path(UI_FONT_FILE)
-    font_id = QFontDatabase.addApplicationFont(path)
-    if font_id < 0:
-        return
-    families = QFontDatabase.applicationFontFamilies(font_id)
-    if not families:
+    """注册内置 MiSans 字体（常规+粗体）并设为全局 UI 字体；加载失败时静默回退系统字体。"""
+    registered = []
+    for file in UI_FONT_FILES:
+        path = get_font_path(file)
+        font_id = QFontDatabase.addApplicationFont(path)
+        if font_id >= 0:
+            registered.extend(QFontDatabase.applicationFontFamilies(font_id))
+    if not registered:
         return
     # 将 MiSans 置于字体族最前，缺失字形时回退系统字体；仅运行时生效，不写入配置
-    setFontFamilies([families[0], 'Microsoft YaHei', 'PingFang SC'], save=False)
+    setFontFamilies([registered[0], 'Microsoft YaHei', 'PingFang SC'], save=False)
+
+    # 消除字体锯齿：开启灰度抗锯齿 + 关闭字形 hinting（最平滑的渲染效果）
+    font = QApplication.font()
+    font.setStyleStrategy(QFont.StyleStrategy.PreferAntialias)
+    font.setHintingPreference(QFont.HintingPreference.PreferNoHinting)
+    QApplication.setFont(font)
 
 
 def main():

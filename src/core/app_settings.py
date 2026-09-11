@@ -61,6 +61,36 @@ def _ensure_default_theme_mode():
 _ensure_default_theme_mode()
 
 
+def _default_pictures_path():
+    """当前用户的图片文件夹路径（跨平台），失败时回退 ~/Pictures。"""
+    from PyQt6.QtCore import QStandardPaths
+    path = QStandardPaths.writableLocation(
+        QStandardPaths.StandardLocation.PicturesLocation)
+    return path or os.path.join(os.path.expanduser('~'), 'Pictures')
+
+
+def _ensure_default_save_path():
+    """首次运行（配置文件中未保存过保存路径）时默认设为当前用户的图片文件夹。
+
+    与 _ensure_default_theme_mode 同理：必须读取配置文件判断而非内存默认值，
+    避免把用户明确保存的路径覆盖掉。
+    """
+    import json
+
+    try:
+        with open(config_file, encoding='utf-8') as f:
+            saved = json.load(f)
+    except Exception:
+        saved = {}
+    group = saved.get('Workspace')
+    if not isinstance(group, dict) or 'savePath' not in group:
+        qconfig.set(cfg.savePath, _default_pictures_path())
+        qconfig.save()
+
+
+_ensure_default_save_path()
+
+
 def sync_theme_from_cfg():
     """启动时应用 cfg 中保存的主题。cfg.themeMode 与 qconfig.themeMode 同源。"""
     from qfluentwidgets import setTheme

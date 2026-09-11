@@ -7,18 +7,18 @@ import re
 import time
 
 from PyQt6.QtCore import Qt, QUrl
-from PyQt6.QtGui import QDesktopServices, QIcon
+from PyQt6.QtGui import QDesktopServices, QFontDatabase, QIcon, QPixmap
 from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
-from PyQt6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QApplication, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from qfluentwidgets import (BodyLabel, CaptionLabel, FluentIcon as FIF,
                             HyperlinkButton, InfoBar, MessageBox, PushButton,
-                            StrongBodyLabel, SubtitleLabel, TitleLabel)
+                            StrongBodyLabel, SubtitleLabel, TitleLabel, qconfig)
 
 from src import __version__
 from src.core.update_checker import GITHUB_RELEASES_URL, UpdateChecker
-from src.utils.helpers import get_app_data_dir
-from src.widgets.round_avatar import AVATAR_TTL, RoundAvatar, _round_pixmap
+from src.utils.helpers import get_app_data_dir, get_font_path
+from src.widgets.round_avatar import AVATAR_TTL, RoundAvatar
 
 GITHUB_URL = 'https://github.com/VanillaNahida/QQFavoriteExtract'
 ISSUES_URL = GITHUB_URL + '/issues'
@@ -28,13 +28,15 @@ AUTHOR_WEBSITE = 'https://www.xcnahida.cn'
 GROUP_LINK = 'https://www.xcnahida.cn/contact'
 
 APP_NAME = 'QQNT表情包批量提取工具'
-APP_DESCRIPTION = '使用 Python + Qt6 + QFluentWidgets 构建的现代化 QQ 表情包提取工具'
-AUTHOR_NAME = '香草味的纳西妲喵'
+APP_DESCRIPTION = '一个使用 Python + Qt6 + QFluentWidgets 设计并构建的现代化 QQ 表情包提取工具。'
+AUTHOR_NAME = '香草味的纳西妲喵（VanillaNahida）'
 DEFAULT_AUTHOR_MOTTO = '与你的日常，就是奇迹！'
 # 作者简介抓取超时（毫秒）
 MOTTO_TIMEOUT_MS = 10000
 # 程序图标 / 作者头像圆形控件统一尺寸
 ICON_SIZE = 96
+# 内置 UI 字体文件名（与 src/main.py 保持一致）
+UI_FONT_FILE = 'MiSans-Semibold.ttf'
 
 
 def _app_root():
@@ -64,19 +66,28 @@ class AboutView(QWidget):
         root.setSpacing(24)
 
         # ---- 第一行：程序信息 ----
-        root.addWidget(SubtitleLabel('软件信息', self))
+        root.addWidget(SubtitleLabel('关于本程序', self))
         app_row = QHBoxLayout()
         app_row.setSpacing(16)
 
         app_icon = QLabel(self)
         app_icon.setFixedSize(ICON_SIZE, ICON_SIZE)
+        app_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
         app_icon.setPixmap(self._app_icon_pixmap())
         app_row.addWidget(app_icon, 0, Qt.AlignmentFlag.AlignVCenter)
 
         app_info = QVBoxLayout()
         app_info.setSpacing(4)
         app_info.addWidget(TitleLabel(APP_NAME, self))
-        app_info.addWidget(CaptionLabel(f'版本 {__version__}', self))
+        # 版本号右侧显示当前启用的 UI 字体
+        version_row = QHBoxLayout()
+        version_row.setSpacing(8)
+        version_row.addWidget(CaptionLabel(f'版本 {__version__}', self))
+        self.font_label = CaptionLabel(self._ui_font_summary(), self)
+        self.font_label.setToolTip('当前软件实际使用的字体族，默认使用内置MiSans字体，缺失字形时回退系统字体。\n自定义字体功能将在后续版本中开放。')
+        version_row.addWidget(self.font_label)
+        version_row.addStretch(1)
+        app_info.addLayout(version_row)
         desc = BodyLabel(APP_DESCRIPTION, self)
         desc.setWordWrap(True)
         app_info.addWidget(desc)
@@ -208,11 +219,31 @@ class AboutView(QWidget):
         else:
             InfoBar.success('已是最新版本', f'当前已是最新版本 v{__version__}', duration=5000, parent=self)
 
-    def _app_icon_pixmap(self):
-        """程序圆形图标：优先使用本地 icon.png，失败回退 Fluent 图标。"""
+    def _app_icon_pixmap(self, size=ICON_SIZE):
+        """程序图标：按原始宽高比自适应缩放至控件内（不强制裁剪），居中显示。
+
+        非正方形图标保持比例完整展示，避免圆形裁剪导致内容缺失。
+        """
         icon_path = os.path.join(_app_root(), 'img', 'icon.png')
         if os.path.exists(icon_path):
-            pixmap = QIcon(icon_path).pixmap(144, 144)
-            if not pixmap.isNull():
-                return _round_pixmap(pixmap, 144)
-        return _round_pixmap(FIF.EMOJI_TAB_SYMBOLS.icon().pixmap(144, 144), 144)
+            pixmap = QPixmap(icon_path)
+        else:
+            pixmap = FIF.EMOJI_TAB_SYMBOLS.icon().pixmap(size, size)
+        if pixmap.isNull():
+            pixmap = FIF.EMOJI_TAB_SYMBOLS.icon().pixmap(size, size)
+        return pixmap.scaled(size, size,
+                             Qt.AspectRatioMode.KeepAspectRatio,
+                             Qt.TransformationMode.SmoothTransformation)
+
+    def _ui_font_summary(self):
+        """当前启用的 UI 字体摘要：内置 MiSans 或系统默认字体。"""
+        families = qconfig.get(qconfig.fontFamilies)
+        current = families[0] if families else QApplication.font().family()
+        system_family = QFontDatabase.systemFont(
+            QFontDatabase.SystemFont.GeneralFont).family()
+        # 重新注册幂等：比对当前字体是否为内置 MiSans
+        font_id = QFontDatabase.addApplicationFont(get_font_path(UI_FONT_FILE))
+        builtin = QFontDatabase.applicationFontFamilies(font_id) if font_id >= 0 else []
+        if current in builtin:
+            return f'当前UI字体：内置字体 {current} | 系统默认字体 {system_family}'
+        return f'当前UI字体：{current}'

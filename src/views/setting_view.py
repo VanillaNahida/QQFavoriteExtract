@@ -12,8 +12,9 @@ from qfluentwidgets import (CaptionLabel, FluentIcon as FIF, InfoBar,
                             SettingCardGroup, SubtitleLabel, SwitchSettingCard,
                             qconfig, setTheme, Theme)
 
+from src.app.signal_bus import signalBus
 from src.core.app_settings import cfg, sync_theme_to_cfg
-from src.utils.helpers import get_app_data_dir
+from src.utils.helpers import get_app_data_dir, to_display_path
 
 
 class SettingView(ScrollArea):
@@ -66,7 +67,7 @@ class SettingView(ScrollArea):
             '选择文件夹',
             FIF.DOWNLOAD,
             '默认保存路径',
-            cfg.get(cfg.savePath) or '未设置',
+            to_display_path(cfg.get(cfg.savePath)) or '未设置',
             workspace_group,
         )
         workspace_group.addSettingCard(self.save_path_card)
@@ -127,6 +128,8 @@ class SettingView(ScrollArea):
         self.cache_card.clicked.connect(self._clear_cache)
         self.open_cache_button.clicked.connect(self._open_cache_folder)
         self.tutorial_card.clicked.connect(self._reset_tutorial)
+        # 工作台修改保存路径后，同步刷新本页卡片显示
+        signalBus.savePathChanged.connect(self._on_save_path_synced)
 
     def _on_theme_changed(self, ci):
         """主题变更：应用主题并同步持久化到 cfg"""
@@ -137,8 +140,15 @@ class SettingView(ScrollArea):
         directory = QFileDialog.getExistingDirectory(self, '选择默认保存路径')
         if directory:
             cfg.set(cfg.savePath, directory)
-            self.save_path_card.setContent(directory)
-            InfoBar.success('已保存', f'默认保存路径：{directory}', duration=5000, parent=self)
+            self.save_path_card.setContent(to_display_path(directory))
+            InfoBar.success('已保存', f'默认保存路径：{to_display_path(directory)}', duration=5000, parent=self)
+            # 通知工作台同步输入框与导出目标
+            signalBus.savePathChanged.emit(directory)
+
+    def _on_save_path_synced(self, path):
+        """工作台修改保存路径后，同步刷新本页卡片显示。"""
+        if path:
+            self.save_path_card.setContent(to_display_path(path))
 
     def _clear_cache(self):
         from src.core.user_service import UserService

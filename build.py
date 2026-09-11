@@ -125,7 +125,8 @@ def build(version, nuitka_version):
         '--include-data-files=README.md=README.md',
         '--include-data-dir=img=img',
         '--include-data-dir=src/assets=src/assets',
-        '--include-data-files=src/fonts/MiSans-Semibold.ttf=src/fonts/MiSans-Semibold.ttf',
+        # 内置 UI 字体（常规+粗体）随 exe 内嵌
+        '--include-data-dir=src/fonts=src/fonts',
         f'--file-version={nuitka_version}',
         f'--product-version={nuitka_version}',
         '--product-name=QQFavoriteExtract',

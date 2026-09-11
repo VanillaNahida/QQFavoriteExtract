@@ -27,7 +27,7 @@ from src.core.emoji_scanner import get_actual_extension
 from src.core.user_service import UserService
 from src.core.workers import (DetailLoaderWorker, ExportWorker, PreviewLoaderWorker,
                               ScanWorker, SortWorker, start_worker)
-from src.utils.helpers import format_exc, get_asset_path, sanitize_filename
+from src.utils.helpers import format_exc, get_asset_path, sanitize_filename, to_display_path
 from src.widgets.emoji_detail_widget import DetailPanelCard, EmojiDetailWidget
 from src.widgets.emoji_preview_widget import EmojiEntry, EmojiPreviewWidget
 from src.widgets.image_viewer import LargeImageViewer
@@ -322,12 +322,15 @@ class WorkspaceView(QWidget):
 
         self.detail_widget.collapsedChanged.connect(self._on_detail_collapsed)
 
+        # 设置页修改保存路径后，同步工作台输入框与导出目标
+        signalBus.savePathChanged.connect(self._on_save_path_synced)
+
         self.user_service.nicknameReady.connect(self._on_nickname_ready)
 
     def _init_state(self):
         saved = cfg.get(cfg.savePath)
         if saved:
-            self.save_path_edit.setText(saved)
+            self.save_path_edit.setText(to_display_path(saved))
             self.save_path = saved
         # 详情面板折叠状态
         self.detail_widget.set_collapsed(not cfg.get(cfg.detailPanelExpanded))
@@ -350,7 +353,7 @@ class WorkspaceView(QWidget):
             userdata_path = cfg.get(cfg.lastDataPath)
 
         if userdata_path and os.path.exists(userdata_path):
-            self.read_path_edit.setText(userdata_path)
+            self.read_path_edit.setText(to_display_path(userdata_path))
             self.userdata_save_path_cache = userdata_path
             cfg.set(cfg.lastDataPath, userdata_path)
             if auto_detected:
@@ -366,7 +369,7 @@ class WorkspaceView(QWidget):
                         self.user_service.fetch_nickname(qq)  # 异步回填昵称
                 signalBus.logMessage.emit('info', f'成功加载 {len(qq_list)} 个QQ用户文件夹')
             else:
-                signalBus.logMessage.emit('warn', f'在目录 [{userdata_path}] 下未找到任何QQ号数据文件夹')
+                signalBus.logMessage.emit('warn', f'在目录 [{to_display_path(userdata_path)}] 下未找到任何QQ号数据文件夹')
         else:
             self.read_path_edit.setText('')
             self.user_combo.clear()
@@ -385,7 +388,7 @@ class WorkspaceView(QWidget):
     def _notify_auto_detected(self, path):
         """自动检测到QQ数据目录时，右上角通知已自动定位并填充路径。"""
         if self.isVisible():
-            InfoBar.success('成功！', f'已为您自动定位QQ数据目录，路径已自动填充：\n{path}', duration=5000, parent=self)
+            InfoBar.success('成功！', f'已为您自动定位QQ数据目录，路径已自动填充：\n{to_display_path(path)}', duration=5000, parent=self)
         else:
             # 启动阶段窗口尚未显示：推迟到事件循环开始（窗口已展示）后再弹出
             QTimer.singleShot(0, lambda: self._notify_auto_detected(path))
@@ -405,7 +408,7 @@ class WorkspaceView(QWidget):
                 if os.path.isdir(emoji_root / d):
                     self.category_combo.addItem(get_category_display_name(d), None, d)
         else:
-            signalBus.logMessage.emit('warn', f'未找到该账户的 Emoji 目录: {emoji_root}')
+            signalBus.logMessage.emit('warn', f'未找到该账户的 Emoji 目录: {to_display_path(emoji_root)}')
         # 收藏图片分类：Pic 目录存在时提供「收藏图片」扫描入口（扫描 Pic/日期/Ori 下原图）
         if get_pic_root(userdata, qq).exists():
             self.category_combo.addItem(get_category_display_name('pic'), None, 'pic')
@@ -437,10 +440,19 @@ class WorkspaceView(QWidget):
     def select_save_path(self):
         directory = QFileDialog.getExistingDirectory(self, '请选择表情包保存路径')
         if directory:
-            self.save_path_edit.setText(directory)
+            self.save_path_edit.setText(to_display_path(directory))
             self.save_path = directory
             cfg.set(cfg.savePath, directory)
-            signalBus.logMessage.emit('info', f'已将保存路径设置为: {directory}')
+            signalBus.logMessage.emit('info', f'已将保存路径设置为: {to_display_path(directory)}')
+            # 通知设置页同步显示
+            signalBus.savePathChanged.emit(directory)
+
+    def _on_save_path_synced(self, path):
+        """设置页修改保存路径后同步工作台输入框与导出目标。"""
+        if not path:
+            return
+        self.save_path_edit.setText(to_display_path(path))
+        self.save_path = path
 
     # ---------- 扫描 ----------
 
@@ -606,7 +618,7 @@ class WorkspaceView(QWidget):
         info_text += f"<b>格式:</b> {_html_escape(format_display)}<br/>"
         info_text += f"<b>大小:</b> {size_kb:.2f} KB<br/><br/>"
         # 路径较长：插入零宽空格断行点，配合自动换行完整显示
-        info_text += f"<b>保存路径:</b><br/>{_escape_wbr(path)}"
+        info_text += f"<b>保存路径:</b><br/>{_escape_wbr(to_display_path(path))}"
         return info_text
 
     def _load_detail(self, path):
@@ -662,7 +674,7 @@ class WorkspaceView(QWidget):
         safe_name = sanitize_filename(display_name) or 'unknown'
         output_dir = os.path.join(self.save_path, f"{safe_name}_{self.current_folder_key}_{suffix}")
 
-        box = MessageBox('确认导出', f'确定导出 {len(paths)} 个表情到：\n{output_dir}？', self)
+        box = MessageBox('确认导出', f'确定导出 {len(paths)} 个表情到：\n{to_display_path(output_dir)}？', self)
         box.yesButton.setText('导出')
         box.cancelButton.setText('取消')
         if not box.exec():
@@ -695,7 +707,7 @@ class WorkspaceView(QWidget):
         if gen == self.generation:
             self.tooltip.finish('导出完成', f'成功导出 {success} 个表情')
             InfoBar.success('导出完成', f'成功导出 {success} 个表情', duration=5000, parent=self)
-            signalBus.logMessage.emit('info', f'导出完成：成功 {success} 个 -> {output_dir}')
+            signalBus.logMessage.emit('info', f'导出完成：成功 {success} 个 -> {to_display_path(output_dir)}')
             self._open_in_explorer(output_dir)
         self._exporting = False
         self.export_selected_button.setEnabled(True)
