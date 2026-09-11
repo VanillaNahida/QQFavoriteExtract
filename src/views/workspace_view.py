@@ -507,6 +507,24 @@ class WorkspaceView(QWidget):
         self.preview_widget.set_entries(entries)
         self._show_preview_or_empty()
         self._collapse_config()
+
+        # 自动沿用用户此前设定的排序（跨分类保持，如从「按时间排序」切到新分类）
+        key = self.preview_widget.sort_key
+        if key != 'name':
+            InfoBar.success('扫描完成', f'发现 {len(paths)} 个有效表情，正在应用排序', duration=5000, parent=self)
+            signalBus.logMessage.emit(
+                'info', f'扫描并筛选完毕，共发现 {len(paths)} 个有效表情图片，自动应用排序 [{key}]')
+            self.tooltip.update(f'共发现 {len(paths)} 个有效表情，正在应用排序…')
+            self._cancel_worker('sort')
+            worker = SortWorker(
+                self.generation, list(entries), key,
+                self.preview_widget.sort_order,
+                self.current_folder_key == 'marketface')
+            worker.finished.connect(self._on_sort_finished)
+            self._workers['sort'] = worker
+            start_worker(worker, self)
+            return
+
         self.tooltip.finish('扫描完成', f'共发现 {len(paths)} 个有效表情')
         InfoBar.success('扫描完成', f'发现 {len(paths)} 个有效表情', duration=5000, parent=self)
         signalBus.logMessage.emit('info', f'扫描并筛选完毕，共发现 {len(paths)} 个有效表情图片')
