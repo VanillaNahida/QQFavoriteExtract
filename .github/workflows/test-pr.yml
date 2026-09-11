@@ -1,0 +1,42 @@
+name: Test Pull Request
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    if: github.event.pull_request.state == 'open'  # 仅在 PR 处于开启状态时执行测试
+    runs-on: windows-latest
+    timeout-minutes: 15
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup uv
+      uses: astral-sh/setup-uv@v5
+      with:
+        python-version: '3.12'
+        enable-cache: true
+
+    - name: Install dependencies with uv
+      # uv.lock 不被 git 跟踪，CI 检出后不存在，需先 uv lock 生成锁文件再以 frozen 安装
+      run: |
+        uv lock
+        uv sync --frozen
+
+    - name: Python 语法编译检查
+      # 语法错误时 compileall 返回非零退出码，直接导致该步骤失败
+      run: |
+        uv run python -m compileall -q src build.py
+
+    - name: 核心模块导入冒烟测试
+      # offscreen 平台避免依赖图形环境；main() 有 __main__ 保护，导入不会启动 GUI
+      env:
+        QT_QPA_PLATFORM: offscreen
+      run: |
+        uv run python -c "import src.main; print('应用入口模块导入成功')"
