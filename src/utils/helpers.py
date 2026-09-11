@@ -119,12 +119,17 @@ def get_recommended_extension(file_path):
 
 
 def format_file_size(num_bytes):
-    """人性化文件大小显示"""
-    size_kb = num_bytes / 1024
-    if size_kb < 1024:
-        return f"{size_kb:.2f} KB"
-    size_mb = size_kb / 1024
-    return f"{size_mb:.2f} MB"
+    """人性化文件大小显示：按 B/KB/MB/GB/TB 自动进位
+
+    例如 13_300_000 字节 → '12.69 MB'，而不是 '12695.05 KB'
+    """
+    size = float(num_bytes)
+    for unit in ('B', 'KB', 'MB', 'GB', 'TB'):
+        if size < 1024.0 or unit == 'TB':
+            if unit == 'B':
+                return f"{int(size)} B"
+            return f"{size:.2f} {unit}"
+        size /= 1024.0
 
 
 def format_mtime(timestamp):

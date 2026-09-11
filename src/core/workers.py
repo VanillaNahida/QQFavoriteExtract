@@ -274,6 +274,9 @@ class ConvertWorker(WorkerBase):
         self.apng_path = apng_path
 
     def run(self):
+        if self._cancelled:
+            self.finished.emit(self.generation, '')
+            return
         gif_path = convert_apng_to_gif(self.apng_path)
         self.finished.emit(self.generation, gif_path or '')
 

@@ -12,9 +12,10 @@ from PyQt6.QtWidgets import (QFileDialog, QFormLayout, QHBoxLayout, QLabel,
                              QStackedWidget, QVBoxLayout, QWidget)
 
 from qfluentwidgets import (BodyLabel, CaptionLabel, CardWidget, ComboBox,
-                            FluentIcon as FIF, InfoBar, LineEdit, MessageBox,
-                            PopupTeachingTip, PrimaryPushButton, PushButton,
-                            StrongBodyLabel, SubtitleLabel, TeachingTipTailPosition,
+                            FluentIcon as FIF, IndeterminateProgressBar,
+                            InfoBar, LineEdit, MessageBox, PopupTeachingTip,
+                            PrimaryPushButton, PushButton, StrongBodyLabel,
+                            SubtitleLabel, TeachingTipTailPosition,
                             TransparentPushButton)
 
 from src.app.signal_bus import signalBus
@@ -25,9 +26,11 @@ from src.core.config import (get_category_display_name, get_category_path,
 from src.core.emoji_converter import is_apng_file
 from src.core.emoji_scanner import get_actual_extension
 from src.core.user_service import UserService
-from src.core.workers import (DetailLoaderWorker, ExportWorker, PreviewLoaderWorker,
-                              ScanWorker, SortWorker, start_worker)
-from src.utils.helpers import format_exc, get_asset_path, sanitize_filename, to_display_path
+from src.core.workers import (ConvertWorker, DetailLoaderWorker, ExportWorker,
+                              PreviewLoaderWorker, ScanWorker, SortWorker,
+                              start_worker)
+from src.utils.helpers import (format_exc, format_file_size, get_asset_path,
+                               sanitize_filename, to_display_path)
 from src.widgets.emoji_detail_widget import DetailPanelCard, EmojiDetailWidget
 from src.widgets.emoji_preview_widget import EmojiEntry, EmojiPreviewWidget
 from src.widgets.image_viewer import LargeImageViewer
@@ -214,12 +217,14 @@ class WorkspaceView(QWidget):
         preview_header.addWidget(self.clear_sel_button)
         preview_layout.addLayout(preview_header)
 
-        # 空状态引导页 + 预览网格
+        # 空状态引导页 + 预览网格 + 加载占位页
         self.stack = QStackedWidget(self)
         self.empty_page = self._build_empty_page()
         self.preview_widget = EmojiPreviewWidget(self)
+        self.loading_page = self._build_loading_page()
         self.stack.addWidget(self.empty_page)      # index 0
         self.stack.addWidget(self.preview_widget)  # index 1
+        self.stack.addWidget(self.loading_page)    # index 2
         preview_layout.addWidget(self.stack, 1)
         host_layout.addWidget(self.preview_card)
 
@@ -280,7 +285,7 @@ class WorkspaceView(QWidget):
         layout.setSpacing(12)
         icon_label = QLabel(page)
         # 空状态占位图：使用本地素材图片（等比缩放，避免非正方形图片拉伸）
-        icon_pixmap = QPixmap(get_asset_path('ClanChat_Emoji_Dummy01.png'))
+        icon_pixmap = QPixmap(get_asset_path('Empty_Status.png'))
         if icon_pixmap.isNull():
             icon_pixmap = FIF.EMOJI_TAB_SYMBOLS.icon().pixmap(160, 160)
         else:
@@ -294,6 +299,42 @@ class WorkspaceView(QWidget):
         layout.addStretch(2)
         layout.addWidget(icon_label)
         layout.addWidget(text_label)
+        layout.addStretch(3)
+        return page
+
+    def _build_loading_page(self):
+        """预览加载占位页：Loading 图 + 提示文字 + 不确定进度条"""
+        page = QWidget(self)
+        layout = QVBoxLayout(page)
+        layout.setSpacing(12)
+
+        icon_label = QLabel(page)
+        icon_pixmap = QPixmap(get_asset_path('Loading.png'))
+        if icon_pixmap.isNull():
+            icon_pixmap = FIF.EMOJI_TAB_SYMBOLS.icon().pixmap(160, 160)
+        else:
+            icon_pixmap = icon_pixmap.scaled(
+                160, 128, Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation)
+        icon_label.setPixmap(icon_pixmap)
+        icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        text_label = BodyLabel('请稍后，正在加载预览……')
+        text_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # 不确定进度条：自动循环动画，表示正在加载中
+        self.loading_bar = IndeterminateProgressBar(page)
+        self.loading_bar.setFixedWidth(260)
+        bar_row = QHBoxLayout()
+        bar_row.addStretch()
+        bar_row.addWidget(self.loading_bar)
+        bar_row.addStretch()
+
+        layout.addStretch(2)
+        layout.addWidget(icon_label)
+        layout.addWidget(text_label)
+        layout.addSpacing(6)
+        layout.addLayout(bar_row)
         layout.addStretch(3)
         return page
 
@@ -549,16 +590,21 @@ class WorkspaceView(QWidget):
         worker.finished.connect(self._on_preview_finished)
         self._workers['preview'] = worker
         start_worker(worker, self)
+        # 首屏尚未加载出缩略图时，展示加载占位页
+        self._show_preview_or_empty()
 
     def _on_batch_ready(self, gen, start_idx, items):
         if gen != self.generation:
             return
         self.preview_widget.append_batch(items)
+        # 第一批缩略图到达后切回预览网格
+        self._show_preview_or_empty()
 
     def _on_preview_finished(self, gen):
         if gen != self.generation:
             return
         self.is_loading = False
+        self._show_preview_or_empty()
         # 若滚动条仍在底部附近，继续加载以填满视口
         if self.preview_widget.loaded_count < len(self.preview_widget.entries):
             scroll_bar = self.preview_widget.verticalScrollBar()
@@ -616,9 +662,9 @@ class WorkspaceView(QWidget):
         entry = self.preview_widget.get_entry(path)
         file_name = os.path.basename(path)
         try:
-            size_kb = os.path.getsize(path) / 1024
+            size_display = format_file_size(os.path.getsize(path))
         except Exception:
-            size_kb = 0
+            size_display = '未知'
 
         if self.current_folder_key == 'marketface':
             format_display = 'GIF（已解密）'
@@ -634,7 +680,7 @@ class WorkspaceView(QWidget):
 
         info_text = f"<b>文件名:</b><br/>{_escape_wbr(file_name)}<br/><br/>"
         info_text += f"<b>格式:</b> {_html_escape(format_display)}<br/>"
-        info_text += f"<b>大小:</b> {size_kb:.2f} KB<br/><br/>"
+        info_text += f"<b>大小:</b> {size_display}<br/><br/>"
         # 路径较长：插入零宽空格断行点，配合自动换行完整显示
         info_text += f"<b>保存路径:</b><br/>{_escape_wbr(to_display_path(path))}"
         return info_text
@@ -765,12 +811,45 @@ class WorkspaceView(QWidget):
             from src.core.marketface_handler import recover_marketface_preview
             data = recover_marketface_preview(path)
             dialog.show_payload({'kind': 'data', 'data': data} if data else None)
-        else:
-            ext = get_actual_extension(path) or os.path.splitext(path)[1].lstrip('.').lower()
-            dialog.show_payload({'kind': 'path', 'path': path, 'ext': ext})
+            self._show_viewer(dialog)
+            return
+        ext = get_actual_extension(path) or os.path.splitext(path)[1].lstrip('.').lower()
+        if ext == 'png' and is_apng_file(path):
+            # APNG 需先转临时 GIF 才能由 Pillow 播放动图：后台转换，完成后自动加载
+            dialog.show_loading('APNG 动图转换中…')
+            self._show_viewer(dialog)
+            self._load_viewer_apng(path)
+            return
+        dialog.show_payload({'kind': 'path', 'path': path, 'ext': ext})
+        self._show_viewer(dialog)
+
+    def _show_viewer(self, dialog):
         dialog.show()
         dialog.raise_()
         dialog.activateWindow()
+
+    def _load_viewer_apng(self, path):
+        """后台转换 APNG → 临时 GIF，完成后交给大图窗口播放动图。"""
+        self._cancel_worker('viewer_convert')
+        seq = getattr(self, '_viewer_conv_seq', 0) + 1
+        self._viewer_conv_seq = seq
+        worker = ConvertWorker(self.generation, path)
+        worker.finished.connect(partial(self._on_viewer_convert_finished, seq))
+        self._workers['viewer_convert'] = worker
+        start_worker(worker, self)
+
+    def _on_viewer_convert_finished(self, seq, gen, gif_path):
+        """APNG 转换完成：仅接受最近一次请求的结果（seq 校验，避免旧结果覆盖新图）。"""
+        if gen != self.generation or seq != getattr(self, '_viewer_conv_seq', -1):
+            return
+        self._workers.pop('viewer_convert', None)
+        dialog = self._image_viewer
+        if dialog is None:
+            return
+        if gif_path:
+            dialog.show_payload({'kind': 'path', 'path': gif_path, 'ext': 'gif'})
+        else:
+            dialog.preview_label.setText('APNG 转换失败')
 
     def _on_viewer_destroyed(self):
         """大图窗口被销毁（主窗口关闭）时清空引用，避免悬垂。"""
@@ -939,7 +1018,17 @@ class WorkspaceView(QWidget):
         self._config_anim = anim
 
     def _show_preview_or_empty(self):
-        self.stack.setCurrentIndex(1 if len(self.preview_widget.entries) > 0 else 0)
+        """预览区三态切换：空状态(0) / 加载占位页(2) / 预览网格(1)
+
+        表情较多、首屏缩略图尚未加载出来时显示加载占位页，
+        第一批缩略图到达后切回预览网格。
+        """
+        if len(self.preview_widget.entries) == 0:
+            self.stack.setCurrentIndex(0)
+        elif self.is_loading and self.preview_widget.loaded_count == 0:
+            self.stack.setCurrentIndex(2)
+        else:
+            self.stack.setCurrentIndex(1)
 
     # ---------- 线程管理 ----------
 

@@ -171,6 +171,11 @@ class LargeImageViewer(QDialog):
         else:
             self._show_image(path)
 
+    def show_loading(self, text='加载中…'):
+        """显示加载提示文字（如 APNG 转 GIF 等耗时操作进行中）。"""
+        self._stop()
+        self.preview_label.setText(text)
+
     def _play_bytes(self, data):
         if not self._player.load(data):
             self.preview_label.setText('图片加载失败')
