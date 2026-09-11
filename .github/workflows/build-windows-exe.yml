@@ -11,7 +11,7 @@ permissions:
 jobs:
   build-windows-exe:
     runs-on: windows-latest
-    timeout-minutes: 90  # 四种构建（Nuitka/PyInstaller x 单文件/多文件）耗时较长
+    timeout-minutes: 60  # 两种构建（PyInstaller x 单文件/多文件）耗时较长
 
     steps:
     - name: Checkout code with tag information
@@ -32,18 +32,10 @@ jobs:
         uv lock
         uv sync --frozen --extra build --group dev
 
-    - name: Build Nuitka single-file version
+    - name: Build PyInstaller single-file version
       id: build
       # build.py 在 CI 中：解析版本（GITHUB_REF 标签）→ 更新 src/__init__.py →
-      # 按参数构建并重命名产物 → 输出 version/nuitka_version 到 GITHUB_OUTPUT
-      run: |
-        uv run python build.py --nuitka --single
-
-    - name: Build Nuitka portable version
-      run: |
-        uv run python build.py --nuitka --multi
-
-    - name: Build PyInstaller single-file version
+      # 按参数构建并重命名产物 → 输出 version 到 GITHUB_OUTPUT
       run: |
         uv run python build.py --pyinstaller --single
 
@@ -56,8 +48,6 @@ jobs:
       with:
         name: QQFavoriteExtract-Windows-${{ steps.build.outputs.version }}
         path: |
-          dist/QQFavoriteExtract_${{ steps.build.outputs.version }}_nuitka_onefile.exe
-          dist/QQFavoriteExtract_${{ steps.build.outputs.version }}_nuitka_portable.zip
           dist/QQFavoriteExtract_${{ steps.build.outputs.version }}_pyinstaller_onefile.exe
           dist/QQFavoriteExtract_${{ steps.build.outputs.version }}_pyinstaller_portable.zip
         retention-days: 7
@@ -71,8 +61,6 @@ jobs:
         draft: false
         prerelease: false
         files: |
-          dist/QQFavoriteExtract_${{ steps.build.outputs.version }}_nuitka_onefile.exe
-          dist/QQFavoriteExtract_${{ steps.build.outputs.version }}_nuitka_portable.zip
           dist/QQFavoriteExtract_${{ steps.build.outputs.version }}_pyinstaller_onefile.exe
           dist/QQFavoriteExtract_${{ steps.build.outputs.version }}_pyinstaller_portable.zip
       env:
@@ -96,8 +84,6 @@ jobs:
         VERSION="${{ steps.build.outputs.version }}"
         BASE="${{ github.server_url }}/${{ github.repository }}/releases/download/${{ github.ref_name }}"
         sed -e "s|<版本>|$VERSION|g" \
-            -e "s|{{NUITKA_ONEFILE_URL}}|$BASE/QQFavoriteExtract_${VERSION}_nuitka_onefile.exe|g" \
-            -e "s|{{NUITKA_PORTABLE_URL}}|$BASE/QQFavoriteExtract_${VERSION}_nuitka_portable.zip|g" \
             -e "s|{{PYINSTALLER_ONEFILE_URL}}|$BASE/QQFavoriteExtract_${VERSION}_pyinstaller_onefile.exe|g" \
             -e "s|{{PYINSTALLER_PORTABLE_URL}}|$BASE/QQFavoriteExtract_${VERSION}_pyinstaller_portable.zip|g" \
             .github/templates/release-notes-tail.md >> "$NOTES_FILE"

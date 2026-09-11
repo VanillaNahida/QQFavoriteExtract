@@ -15,7 +15,7 @@ permissions:
 jobs:
   build-windows-exe:
     runs-on: windows-latest
-    timeout-minutes: 90  # 四种构建（Nuitka/PyInstaller x 单文件/多文件）耗时较长
+    timeout-minutes: 60  # 两种构建（PyInstaller x 单文件/多文件）耗时较长
 
     steps:
     - name: Checkout code
@@ -34,22 +34,10 @@ jobs:
         uv lock
         uv sync --frozen --extra build --group dev
 
-    - name: Build Nuitka single-file version
+    - name: Build PyInstaller single-file version
       id: build
       # build.py 在 CI 中：解析版本（BUILD_VERSION 优先）→ 更新 src/__init__.py →
-      # 按参数构建并重命名产物 → 输出 version/nuitka_version 到 GITHUB_OUTPUT
-      env:
-        BUILD_VERSION: ${{ github.event.inputs.version }}
-      run: |
-        uv run python build.py --nuitka --single
-
-    - name: Build Nuitka portable version
-      env:
-        BUILD_VERSION: ${{ github.event.inputs.version }}
-      run: |
-        uv run python build.py --nuitka --multi
-
-    - name: Build PyInstaller single-file version
+      # 按参数构建并重命名产物 → 输出 version 到 GITHUB_OUTPUT
       env:
         BUILD_VERSION: ${{ github.event.inputs.version }}
       run: |
@@ -66,8 +54,6 @@ jobs:
       with:
         name: QQFavoriteExtract-Windows-${{ steps.build.outputs.version }}
         path: |
-          dist/QQFavoriteExtract_${{ steps.build.outputs.version }}_nuitka_onefile.exe
-          dist/QQFavoriteExtract_${{ steps.build.outputs.version }}_nuitka_portable.zip
           dist/QQFavoriteExtract_${{ steps.build.outputs.version }}_pyinstaller_onefile.exe
           dist/QQFavoriteExtract_${{ steps.build.outputs.version }}_pyinstaller_portable.zip
         retention-days: 7
