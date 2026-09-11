@@ -34,7 +34,7 @@ jobs:
         uv lock
         uv sync --frozen --extra build --group dev
 
-    - name: 构建 Nuitka 单文件版
+    - name: Build Nuitka single-file version
       id: build
       # build.py 在 CI 中：解析版本（BUILD_VERSION 优先）→ 更新 src/__init__.py →
       # 按参数构建并重命名产物 → 输出 version/nuitka_version 到 GITHUB_OUTPUT
@@ -43,19 +43,19 @@ jobs:
       run: |
         uv run python build.py --nuitka --single
 
-    - name: 构建 Nuitka 多文件版
+    - name: Build Nuitka portable version
       env:
         BUILD_VERSION: ${{ github.event.inputs.version }}
       run: |
         uv run python build.py --nuitka --multi
 
-    - name: 构建 PyInstaller 单文件版
+    - name: Build PyInstaller single-file version
       env:
         BUILD_VERSION: ${{ github.event.inputs.version }}
       run: |
         uv run python build.py --pyinstaller --single
 
-    - name: 构建 PyInstaller 多文件版
+    - name: Build PyInstaller portable version
       env:
         BUILD_VERSION: ${{ github.event.inputs.version }}
       run: |

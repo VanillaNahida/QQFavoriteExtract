@@ -29,14 +29,14 @@ jobs:
         uv lock
         uv sync --frozen
 
-    - name: Python 语法编译检查
+    - name: Python syntax compilation check
       # 语法错误时 compileall 返回非零退出码，直接导致该步骤失败
       run: |
         uv run python -m compileall -q src build.py
 
-    - name: 核心模块导入冒烟测试
+    - name: Core Module Import Smoke Test
       # offscreen 平台避免依赖图形环境；main() 有 __main__ 保护，导入不会启动 GUI
       env:
         QT_QPA_PLATFORM: offscreen
       run: |
-        uv run python -c "import src.main; print('应用入口模块导入成功')"
+        uv run python -c "import src.main; print('Application entry module imported successfully!')"
