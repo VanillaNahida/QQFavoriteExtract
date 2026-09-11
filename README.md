@@ -36,7 +36,7 @@
   <p>程序主界面（浅色）</p> 
   
   <img width="640" alt="image" src="https://github.com/user-attachments/assets/803ef5b2-fe4b-4c36-aae6-608dfed14e42" />  
-  <p>程序主界面（浅色）</p> 
+  <p>程序主界面（深色）</p> 
 
   <img width="640" alt="image" src="https://github.com/user-attachments/assets/e48edd75-3960-420e-8f6a-33744c396060" />
   <p>表情预览</p> 
