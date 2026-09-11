@@ -77,3 +77,28 @@ jobs:
           dist/QQFavoriteExtract_${{ steps.build.outputs.version }}_pyinstaller_portable.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Append download guide to release notes
+      # After the build, append the fixed-format download guide to the Release Note
+      # edited on the web (read current body -> append the template if not yet appended -> write back)
+      if: github.event_name == 'release'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        NOTES_FILE="$(mktemp)"
+        gh release view "${{ github.ref_name }}" --json body --jq .body > "$NOTES_FILE"
+        # Idempotent: skip if the build info marker is already present, avoiding duplicates on reruns
+        if grep -q 'QQFavoriteExtract-BUILD-INFO' "$NOTES_FILE"; then
+          echo "build info already appended, skip"
+          exit 0
+        fi
+        VERSION="${{ steps.build.outputs.version }}"
+        BASE="${{ github.server_url }}/${{ github.repository }}/releases/download/${{ github.ref_name }}"
+        sed -e "s|<版本>|$VERSION|g" \
+            -e "s|{{NUITKA_ONEFILE_URL}}|$BASE/QQFavoriteExtract_${VERSION}_nuitka_onefile.exe|g" \
+            -e "s|{{NUITKA_PORTABLE_URL}}|$BASE/QQFavoriteExtract_${VERSION}_nuitka_portable.zip|g" \
+            -e "s|{{PYINSTALLER_ONEFILE_URL}}|$BASE/QQFavoriteExtract_${VERSION}_pyinstaller_onefile.exe|g" \
+            -e "s|{{PYINSTALLER_PORTABLE_URL}}|$BASE/QQFavoriteExtract_${VERSION}_pyinstaller_portable.zip|g" \
+            .github/templates/release-notes-tail.md >> "$NOTES_FILE"
+        gh release edit "${{ github.ref_name }}" --notes-file "$NOTES_FILE"
