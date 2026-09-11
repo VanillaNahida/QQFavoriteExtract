@@ -10,4 +10,5 @@ venv/
 .venv/
 uv.lock
 .trae/
-qfluentwidgets-example/
+dist/
+build/

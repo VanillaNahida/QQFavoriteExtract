@@ -11,7 +11,7 @@ permissions:
 jobs:
   build-windows-exe:
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 90  # 四种构建（Nuitka/PyInstaller x 单文件/多文件）耗时较长
 
     steps:
     - name: Checkout code with tag information
@@ -27,36 +27,39 @@ jobs:
 
     - name: Install dependencies with uv
       # uv.lock 不被 git 跟踪，CI 检出后不存在，需先 uv lock 生成锁文件再以 frozen 安装
+      # --group dev 显式安装 pyinstaller（build 脚本的 PyInstaller 打包器依赖）
       run: |
         uv lock
-        uv sync --frozen --extra build
+        uv sync --frozen --extra build --group dev
 
-    - name: Build executable with Nuitka
+    - name: 构建 Nuitka 单文件版
       id: build
       # build.py 在 CI 中：解析版本（GITHUB_REF 标签）→ 更新 src/__init__.py →
-      # Nuitka 构建 → 重命名 exe → 输出 version/nuitka_version 到 GITHUB_OUTPUT
+      # 按参数构建并重命名产物 → 输出 version/nuitka_version 到 GITHUB_OUTPUT
       run: |
-        uv run python build.py
+        uv run python build.py --nuitka --single
 
-    - name: Create zip package
+    - name: 构建 Nuitka 多文件版
       run: |
-        $version = "${{ steps.build.outputs.version }}"
-        $zipPath = "dist\QQFavoriteExtract_$version.zip"
-        $filesToInclude = @(
-            "dist\QQFavoriteExtract_$version.exe",
-            "LICENSE",
-            "README.md"
-        ) | Where-Object { Test-Path $_ }
-        Compress-Archive -Path $filesToInclude -DestinationPath $zipPath -Force
-        Write-Host "Created package: $zipPath"
+        uv run python build.py --nuitka --multi
 
-    - name: Upload standalone EXE as artifact
+    - name: 构建 PyInstaller 单文件版
+      run: |
+        uv run python build.py --pyinstaller --single
+
+    - name: 构建 PyInstaller 多文件版
+      run: |
+        uv run python build.py --pyinstaller --multi
+
+    - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
         name: QQFavoriteExtract-Windows-${{ steps.build.outputs.version }}
         path: |
-          dist/QQFavoriteExtract_${{ steps.build.outputs.version }}.exe
-          dist/QQFavoriteExtract_${{ steps.build.outputs.version }}.zip
+          dist/QQFavoriteExtract_${{ steps.build.outputs.version }}_nuitka_onefile.exe
+          dist/QQFavoriteExtract_${{ steps.build.outputs.version }}_nuitka_portable.zip
+          dist/QQFavoriteExtract_${{ steps.build.outputs.version }}_pyinstaller_onefile.exe
+          dist/QQFavoriteExtract_${{ steps.build.outputs.version }}_pyinstaller_portable.zip
         retention-days: 7
 
     - name: Upload to GitHub Release
@@ -68,7 +71,9 @@ jobs:
         draft: false
         prerelease: false
         files: |
-          dist/QQFavoriteExtract_${{ steps.build.outputs.version }}.exe
-          dist/QQFavoriteExtract_${{ steps.build.outputs.version }}.zip
+          dist/QQFavoriteExtract_${{ steps.build.outputs.version }}_nuitka_onefile.exe
+          dist/QQFavoriteExtract_${{ steps.build.outputs.version }}_nuitka_portable.zip
+          dist/QQFavoriteExtract_${{ steps.build.outputs.version }}_pyinstaller_onefile.exe
+          dist/QQFavoriteExtract_${{ steps.build.outputs.version }}_pyinstaller_portable.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
