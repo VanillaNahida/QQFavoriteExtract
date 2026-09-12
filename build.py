@@ -200,6 +200,11 @@ def _pyinstaller_version_file(version):
       Nuitka --copyright                         -> LegalCopyright
       Nuitka --company-name                      -> CompanyName
       Nuitka --file-description                  -> FileDescription
+
+    注意：必须同时提供 VarFileInfo\\Translation，且其语言/代码页（0x0409/0x04B0）
+    与 StringTable 的 '040904B0' 对应。Windows 资源管理器“详细信息”页依据
+    Translation 选择要展示的字符串块；缺少它时只会显示 FixedFileInfo 的数字文件版本，
+    版权/产品名称/文件说明等字符串在属性页中全部为空白。
     """
     ver = tuple(int(x) for x in version.split('.'))
     return f'''# UTF-8
@@ -227,7 +232,10 @@ VSVersionInfo(
            StringStruct('OriginalFilename', 'QQFavoriteExtract.exe'),
            StringStruct('ProductName', 'QQFavoriteExtract'),
            StringStruct('ProductVersion', '{version}')])
-      ])
+      ]),
+    # 语言映射：0x0409=英语(美国)，0x04B0=1200(Unicode)，与上方 StringTable '040904B0' 对应
+    # 缺少此块时资源管理器“详细信息”页无法关联字符串，版权等字段会显示为空白
+    VarFileInfo([VarStruct('Translation', [0x0409, 0x04B0])])
   ]
 )
 '''
