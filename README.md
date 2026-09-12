@@ -1,7 +1,8 @@
 <div align="center">
   
   ![:name](https://count.getloli.com/@QQFavoriteExtract?name=QQFavoriteExtract&theme=minecraft&padding=6&offset=0&align=top&scale=1&pixelated=1&darkmode=auto)
-
+  <img heigh="250" alt="image" src="https://github.com/user-attachments/assets/ce9a62e1-c5c6-4167-bae4-297863110b57" />
+  
 </div>
 
 <div align="center">
@@ -11,6 +12,7 @@
   [![GitHub forks](https://img.shields.io/github/forks/VanillaNahida/QQFavoriteExtract?style=flat-square)](https://github.com/VanillaNahida/QQFavoriteExtract/network)
   [![GitHub issues](https://img.shields.io/github/issues/VanillaNahida/QQFavoriteExtract?style=flat-square)](https://github.com/VanillaNahida/QQFavoriteExtract/issues)
   [![Platform](https://img.shields.io/badge/Platform-Windows-brightgreen.svg?style=flat-square)]()
+  [![Qt](https://img.shields.io/badge/Framwork-QFluentWidgets-blue)]()
   [![Author](https://img.shields.io/badge/%E4%BD%9C%E8%80%85-VanillaNahida-green)](https://github.com/VanillaNahida)  
   
 </div>
