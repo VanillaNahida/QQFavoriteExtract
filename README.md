@@ -99,6 +99,125 @@
 ### 3、无法自动定位聊天文件夹
 请尝试手动选择 `Tencent Files` 文件夹。
 
+# 项目结构
+
+```
+QQFavoriteExtract/
+├── .github/
+│   ├── workflows/
+│   │   └── build-windows-exe.yml   # GitHub Actions：构建四种格式 exe 并发布 Release
+│   └── templates/
+│       └── release-notes-tail.md.template  # Release 下载说明模板（构建后自动追加）
+├── src/                          # 源码（Everything is a module）
+│   ├── main.py                   # 程序入口（uv run python -m src.main）
+│   ├── app/                      # 应用层：主窗口、信号总线、主题
+│   │   ├── main_window.py        # 主窗口（FluentWindow）与四页导航注册
+│   │   ├── signal_bus.py         # 全局信号总线（日志输出、保存路径同步等）
+│   │   └── theme.py              # 主题应用辅助
+│   ├── core/                     # 核心逻辑：扫描、导出、配置、更新检查
+│   │   ├── emoji_scanner.py      # 表情包扫描（多账号 / 多分类 / 关键词筛选）
+│   │   ├── exporter.py           # 批量导出与重命名
+│   │   ├── workers.py            # QThread 工作线程（扫描 / 排序 / 导出）
+│   │   ├── app_settings.py       # qconfig 配置项与首次运行默认值
+│   │   ├── update_checker.py     # GitHub Release 版本检查
+│   │   ├── user_service.py       # QQ 账号与数据目录识别
+│   │   └── ...                   # marketface_handler / emoji_converter 等
+│   ├── views/                    # 页面视图：工作台、日志、设置、关于
+│   │   ├── workspace_view.py     # 工作台（数据路径、扫描、预览、导出、排序）
+│   │   ├── log_view.py           # 日志页（分级输出、导出）
+│   │   ├── setting_view.py       # 设置页（主题、保存路径、更新检查）
+│   │   └── about_view.py         # 关于页（软件 / 作者信息、检查更新）
+│   ├── widgets/                  # 可复用组件
+│   │   ├── emoji_preview_widget.py   # 表情预览网格（懒加载、排序、右键菜单）
+│   │   ├── emoji_detail_widget.py    # 表情详情面板（预览、信息、导出）
+│   │   ├── image_viewer.py           # 大图预览窗口（无边框、可缩放）
+│   │   ├── round_avatar.py           # 圆形头像（异步加载 + 本地缓存）
+│   │   └── ...                       # 状态提示 / GIF 播放 / 新手教程等
+│   ├── utils/                    # 工具函数
+│   │   ├── helpers.py            # get_asset_path / get_font_path、路径显示转换
+│   │   └── pillow_gif_player.py  # GIF 解码播放（Pillow，避免 QMovie 崩溃）
+│   ├── assets/                   # 静态资源（占位图等，打包时内嵌 exe）
+│   └── fonts/                    # 内置字体（MiSans Medium / SemiBold，打包时内嵌）
+├── build.py                      # Nuitka 构建脚本（版本号取自 git tag）
+├── pyproject.toml                # 依赖清单（uv 管理）
+└── uv.lock                       # 依赖锁定文件
+```
+
+# 开发指南
+
+### 环境准备
+
+- Windows 10/11，Python 3.9+（推荐 3.12）
+- 安装 [uv](https://docs.astral.sh/uv/)（依赖管理与虚拟环境）
+
+### 安装依赖
+
+```bash
+uv sync
+```
+
+### 运行
+
+```bash
+uv run python -m src.main
+```
+
+### 打包
+
+- **GitHub Actions（推荐）**：推送 `vX.Y.Z` 格式的 tag 后自动构建 Nuitka / PyInstaller 四种产物并上传 Release，同时自动在 Release Note 末尾追加下载说明。
+
+- **本地 PyInstaller**：
+
+  ```bash
+  uv sync --group dev
+  uv run --group dev pyinstaller src/main.py --noconsole --name QQFavoriteExtract --add-data "src/assets;src/assets" --add-data "src/fonts;src/fonts"
+  ```
+  或者直接使用构建脚本`build.py`
+
+  ```bash
+  uv run python build.py --pyinstaller
+  ```
+
+- **本地 Nuitka**：
+
+  ```bash
+  uv sync --extra build
+  uv run python build.py
+  ```
+
+  或者直接使用构建脚本`build.py`
+
+  ```bash
+  uv run python build.py --nuitka
+  ```
+- **自动构建脚本`build.py`用法**：
+
+  ```bash
+  usage: build.py [-h] [--build-version BUILD_VERSION] [--nuitka | --pyinstaller] [--single | --multi | --both]
+
+  QQFavoriteExtract 构建脚本
+
+  options:
+    -h, --help            show this help message and exit
+    --build-version BUILD_VERSION
+                          指定构建版本号（优先级最高）
+    --nuitka              使用 Nuitka 打包（默认）
+    --pyinstaller         使用 PyInstaller 打包
+    --single              仅打包单文件版
+    --multi               仅打包多文件版
+    --both                同时打包单文件与多文件版（默认）
+  ```
+
+### 开发约定
+
+- **模块划分**：按 `app / core / views / widgets / utils` 组织，一切皆模块。
+- **耗时任务**：扫描、排序、导出、图片解码必须放入 `QThread`（见 `core/workers.py`），并携带 generation token 与取消标记，防止竞态与僵尸线程。
+- **图片线程安全**：工作线程中使用 `QImage` 解码，`QPixmap` 只能在 UI 线程创建。
+- **主题适配**：主题切换使用 `lazy=True` 只重绘可见控件；UI 文本使用主题感知组件（如 `BodyLabel`），不要直接写死颜色。
+- **资源路径**：访问 `src/assets`、`src/fonts` 必须使用 `get_asset_path()` / `get_font_path()`，保证开发与 Nuitka onefile 打包环境一致。
+- **日志**：通过 `signalBus.logMessage.emit(level, message)` 输出，格式为 `[YYYY-MM-DD HH:MM:SS] LEVEL    Message`，错误信息需附带完整堆栈。
+- **UI 路径显示**：展示给用户的路径统一用反斜杠 `\`（`to_display_path`），内部处理保持 `os.path` 原样。
+
 # 反馈BUG 🐛
  - Issue （程序逻辑问题可在此反馈）
  - QQ群 （功能疑问、Bug反馈可加入后艾特群主提问）
