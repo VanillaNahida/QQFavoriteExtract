@@ -1,4 +1,3 @@
-# coding=utf-8
 """新手教程：首次使用引导（TeachingTip 气泡序列）。
 
 首次启动时询问用户是否查看；确认后以气泡弹窗形式逐项介绍
@@ -9,10 +8,7 @@ from dataclasses import dataclass
 
 from PyQt6.QtCore import QObject, QTimer, pyqtSignal
 from PyQt6.QtWidgets import QHBoxLayout, QWidget
-
-from qfluentwidgets import (PrimaryPushButton, PushButton, TeachingTip,
-                            TeachingTipTailPosition, TeachingTipView,
-                            qconfig)
+from qfluentwidgets import PrimaryPushButton, PushButton, TeachingTip, TeachingTipTailPosition, TeachingTipView, qconfig
 
 from src.core.app_settings import cfg
 

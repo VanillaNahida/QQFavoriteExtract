@@ -1,14 +1,11 @@
-# coding=utf-8
 """表情网格控件：QListWidget IconMode + 懒加载 + 右键菜单 + 排序 + 多选。"""
 
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from PyQt6.QtCore import QRectF, QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QIcon, QKeySequence, QPainter, QPen, QPixmap, QShortcut
-from PyQt6.QtWidgets import (QAbstractItemView, QListWidget, QListWidgetItem,
-                             QStyle, QStyledItemDelegate)
-
+from PyQt6.QtWidgets import QAbstractItemView, QListWidget, QListWidgetItem, QStyle, QStyledItemDelegate
 from qfluentwidgets import MenuAnimationType, themeColor
 
 from src.widgets.sort_menu import build_context_menu

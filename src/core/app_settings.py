@@ -1,4 +1,3 @@
-# coding=utf-8
 """应用设置持久化（qconfig）。
 
 重要：AppConfig 不能再自定义 themeMode —— 若在子类中重定义该属性，
@@ -46,6 +45,7 @@ def _ensure_default_theme_mode():
     已保存过主题模式的用户保持其原有选择。
     """
     import json
+
     from qfluentwidgets import Theme
 
     try:

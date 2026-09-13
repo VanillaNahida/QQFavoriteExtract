@@ -1,4 +1,3 @@
-# coding=utf-8
 """全局信号总线：跨线程、跨页面通信。"""
 
 from PyQt6.QtCore import QObject, pyqtSignal

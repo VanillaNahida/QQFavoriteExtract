@@ -1,9 +1,8 @@
-# coding=utf-8
 
 import os
 import re
 from pathlib import Path
-from typing import Callable, List, Optional
+from typing import Callable, Optional
 
 from src.core.emoji_converter import is_apng_file
 from src.core.marketface_handler import is_marketface_candidate, recover_marketface_data
@@ -214,7 +213,7 @@ def scan_emoji_folder(emoji_root_path, selected_folder,
     # 1. 全量安全深度遍历，确保任何层级的文件都不会遗漏
     raw_files = []
     try:
-        for root, dirs, files in os.walk(str(emoji_path)):
+        for root, _dirs, files in os.walk(str(emoji_path)):
             for f in files:
                 raw_files.append(os.path.join(root, f))
     except Exception:

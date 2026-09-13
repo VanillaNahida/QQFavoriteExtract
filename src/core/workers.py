@@ -1,4 +1,3 @@
-# coding=utf-8
 """QThread 工作线程层。
 
 设计原则：
@@ -10,7 +9,7 @@
 
 import os
 
-from PyQt6.QtCore import QObject, QRect, QThread, QSize, Qt, pyqtSignal
+from PyQt6.QtCore import QObject, QRect, Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QColor, QFont, QImage, QImageReader, QPainter
 
 from src.core.emoji_converter import convert_apng_to_gif, is_apng_file
@@ -81,7 +80,7 @@ class PreviewLoaderWorker(WorkerBase):
 
     def run(self):
         items = []
-        for i, path in enumerate(self.paths):
+        for _i, path in enumerate(self.paths):
             if self._cancelled:
                 break
             item = self._load_one(path)

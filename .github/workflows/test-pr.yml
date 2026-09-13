@@ -25,9 +25,15 @@ jobs:
 
     - name: Install dependencies with uv
       # uv.lock 不被 git 跟踪，CI 检出后不存在，需先 uv lock 生成锁文件再以 frozen 安装
+      # --group dev 安装 ruff 与 pyinstaller（dev 依赖组）
       run: |
         uv lock
-        uv sync --frozen
+        uv sync --frozen --group dev
+
+    - name: Ruff lint check
+      # 规则配置见 pyproject.toml 的 [tool.ruff]；存在违规时非零退出码使步骤失败
+      run: |
+        uv run ruff check .
 
     - name: Python syntax compilation check
       # 语法错误时 compileall 返回非零退出码，直接导致该步骤失败

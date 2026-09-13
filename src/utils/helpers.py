@@ -1,10 +1,9 @@
-# coding=utf-8
 """纯工具函数：文件编码探测、文件名清洗、格式化等。"""
 
-import os
 import mimetypes
-import chardet
+import os
 
+import chardet
 
 MIME_MAPPING = {
     'jpg': 'image/jpeg',
@@ -140,7 +139,7 @@ def format_mtime(timestamp):
 
 def get_asset_path(name):
     """返回 src/assets 下资源的绝对路径（兼容开发环境与 Nuitka 打包环境）。
-    
+
     Nuitka onefile 会将 --include-data-dir 的数据解包到临时目录，模块 __file__
     在该目录下保持源码相对布局（src/utils/helpers.py），因此用 __file__ 反推
     src 目录即可定位到 assets。

@@ -1,13 +1,10 @@
-# coding=utf-8
 """日志页：详细操作日志（清空 / 导出 txt）。"""
 
 from datetime import datetime
 
 from PyQt6.QtGui import QColor, QTextCharFormat, QTextCursor
 from PyQt6.QtWidgets import QFileDialog, QHBoxLayout, QTextEdit, QVBoxLayout, QWidget
-
-from qfluentwidgets import (InfoBar, MessageBox, PrimaryPushButton, PushButton,
-                            SubtitleLabel, isDarkTheme, qconfig)
+from qfluentwidgets import InfoBar, MessageBox, PrimaryPushButton, PushButton, SubtitleLabel, isDarkTheme, qconfig
 
 from src.app.signal_bus import signalBus
 from src.core.app_settings import cfg

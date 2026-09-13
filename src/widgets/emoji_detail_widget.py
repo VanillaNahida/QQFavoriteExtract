@@ -1,10 +1,8 @@
-# coding=utf-8
 """右侧详情面板：大图/动图播放 + 属性信息。"""
 
-from PyQt6.QtCore import QSize, Qt, QTimer, pyqtSignal
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QColor, QPixmap
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
-
 from qfluentwidgets import BodyLabel, CardWidget, StrongBodyLabel, isDarkTheme
 
 from src.utils.pillow_gif_player import PillowGifPlayer

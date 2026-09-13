@@ -1,4 +1,3 @@
-# coding=utf-8
 """主题常量与切换辅助。"""
 
 from qfluentwidgets import Theme, setTheme, setThemeColor

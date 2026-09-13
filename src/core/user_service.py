@@ -1,4 +1,3 @@
-# coding=utf-8
 """QQ 昵称查询服务：缓存读写 + QNetworkAccessManager 异步网络请求。"""
 
 import json
@@ -35,7 +34,7 @@ class UserService(QObject):
         cache_path = self.get_nickname_cache_path()
         if os.path.exists(cache_path):
             try:
-                with open(cache_path, 'r', encoding='utf-8') as f:
+                with open(cache_path, encoding='utf-8') as f:
                     return json.load(f)
             except Exception:
                 return {}

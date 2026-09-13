@@ -1,4 +1,3 @@
-# coding=utf-8
 """表情提取工作台：配置 → 扫描 → 预览 → 提取 一条清晰路径。"""
 
 import os
@@ -6,37 +5,56 @@ import subprocess
 from functools import partial
 from html import escape as _html_escape
 
-from PyQt6.QtCore import QEasingCurve, QPropertyAnimation, QRect, QTimer, Qt
+from PyQt6.QtCore import QEasingCurve, QPropertyAnimation, QRect, Qt, QTimer
 from PyQt6.QtGui import QPixmap
-from PyQt6.QtWidgets import (QFileDialog, QFormLayout, QHBoxLayout, QLabel,
-                             QStackedWidget, QVBoxLayout, QWidget)
-
-from qfluentwidgets import (BodyLabel, CaptionLabel, CardWidget, ComboBox,
-                            FluentIcon as FIF, IndeterminateProgressBar,
-                            InfoBar, LineEdit, MessageBox, PopupTeachingTip,
-                            PrimaryPushButton, PushButton, StrongBodyLabel,
-                            SubtitleLabel, TeachingTipTailPosition,
-                            TransparentPushButton)
+from PyQt6.QtWidgets import QFileDialog, QFormLayout, QHBoxLayout, QLabel, QStackedWidget, QVBoxLayout, QWidget
+from qfluentwidgets import (
+    BodyLabel,
+    CaptionLabel,
+    CardWidget,
+    ComboBox,
+    IndeterminateProgressBar,
+    InfoBar,
+    LineEdit,
+    MessageBox,
+    PopupTeachingTip,
+    PrimaryPushButton,
+    PushButton,
+    StrongBodyLabel,
+    SubtitleLabel,
+    TeachingTipTailPosition,
+    TransparentPushButton,
+)
+from qfluentwidgets import FluentIcon as FIF
 
 from src.app.signal_bus import signalBus
 from src.core.app_settings import cfg
-from src.core.config import (get_category_display_name, get_category_path,
-                             get_emoji_root, get_numeric_subdirectories,
-                             get_pic_root, get_userdata_save_path)
+from src.core.config import (
+    get_category_display_name,
+    get_category_path,
+    get_emoji_root,
+    get_numeric_subdirectories,
+    get_pic_root,
+    get_userdata_save_path,
+)
 from src.core.emoji_converter import is_apng_file
 from src.core.emoji_scanner import get_actual_extension
 from src.core.user_service import UserService
-from src.core.workers import (ConvertWorker, DetailLoaderWorker, ExportWorker,
-                              PreviewLoaderWorker, ScanWorker, SortWorker,
-                              start_worker)
-from src.utils.helpers import (format_exc, format_file_size, get_asset_path,
-                               sanitize_filename, to_display_path)
+from src.core.workers import (
+    ConvertWorker,
+    DetailLoaderWorker,
+    ExportWorker,
+    PreviewLoaderWorker,
+    ScanWorker,
+    SortWorker,
+    start_worker,
+)
+from src.utils.helpers import format_exc, format_file_size, get_asset_path, sanitize_filename, to_display_path
 from src.widgets.emoji_detail_widget import DetailPanelCard, EmojiDetailWidget
 from src.widgets.emoji_preview_widget import EmojiEntry, EmojiPreviewWidget
 from src.widgets.image_viewer import LargeImageViewer
 from src.widgets.rotating_chevron_button import RotatingChevronButton
 from src.widgets.state_tool_tip import StateToolTipManager
-
 
 _ZERO_WIDTH_SPACE = '\u200b'
 
@@ -410,7 +428,8 @@ class WorkspaceView(QWidget):
                         self.user_service.fetch_nickname(qq)  # 异步回填昵称
                 signalBus.logMessage.emit('info', f'成功加载 {len(qq_list)} 个QQ用户文件夹')
             else:
-                signalBus.logMessage.emit('warn', f'在目录 [{to_display_path(userdata_path)}] 下未找到任何QQ号数据文件夹')
+                signalBus.logMessage.emit(
+                    'warn', f'在目录 [{to_display_path(userdata_path)}] 下未找到任何QQ号数据文件夹')
         else:
             self.read_path_edit.setText('')
             self.user_combo.clear()
@@ -429,7 +448,9 @@ class WorkspaceView(QWidget):
     def _notify_auto_detected(self, path):
         """自动检测到QQ数据目录时，右上角通知已自动定位并填充路径。"""
         if self.isVisible():
-            InfoBar.success('成功！', f'已为您自动定位QQ数据目录，路径已自动填充：\n{to_display_path(path)}', duration=5000, parent=self)
+            InfoBar.success(
+                '成功！', f'已为您自动定位QQ数据目录，路径已自动填充：\n{to_display_path(path)}',
+                duration=5000, parent=self)
         else:
             # 启动阶段窗口尚未显示：推迟到事件循环开始（窗口已展示）后再弹出
             QTimer.singleShot(0, lambda: self._notify_auto_detected(path))
@@ -751,7 +772,7 @@ class WorkspaceView(QWidget):
         self._exporting = True
         self.export_selected_button.setEnabled(False)
         self.export_all_button.setEnabled(False)
-        self.tooltip.show('正在导出表情…', '0/{}'.format(len(paths)))
+        self.tooltip.show('正在导出表情…', f'0/{len(paths)}')
         signalBus.logMessage.emit('info', f'正在复制表情文件到: {output_dir}')
 
         worker = ExportWorker(self.generation, paths, output_dir, self.current_folder_key)

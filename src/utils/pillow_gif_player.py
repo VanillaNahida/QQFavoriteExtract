@@ -1,4 +1,3 @@
-# coding=utf-8
 """基于 Pillow 帧 + QTimer 的 GIF 播放器。
 
 marketface 恢复出的部分 GIF 数据会让 Qt 的 GIF 解码器（QMovie / QImageReader）
@@ -6,7 +5,7 @@ marketface 恢复出的部分 GIF 数据会让 Qt 的 GIF 解码器（QMovie / Q
 播放一律基于 Pillow 帧驱动，不经过 QMovie / QImageReader。
 """
 
-from PyQt6.QtCore import QObject, QSize, QTimer, Qt
+from PyQt6.QtCore import QObject, QSize, Qt, QTimer
 from PyQt6.QtGui import QImage, QPixmap
 
 from src.core.marketface_handler import load_marketface_frames

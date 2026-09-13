@@ -1,4 +1,3 @@
-# coding=utf-8
 """圆形头像：从 URL 异步加载，本地缓存按小时刷新，加载中显示不确定进度环。"""
 
 import os
@@ -8,8 +7,8 @@ from PyQt6.QtCore import Qt, QUrl
 from PyQt6.QtGui import QPainter, QPainterPath, QPixmap
 from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 from PyQt6.QtWidgets import QLabel, QStackedLayout, QWidget
-
-from qfluentwidgets import FluentIcon as FIF, IndeterminateProgressRing
+from qfluentwidgets import FluentIcon as FIF
+from qfluentwidgets import IndeterminateProgressRing
 
 from src.utils.helpers import get_app_data_dir
 

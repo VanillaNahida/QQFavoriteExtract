@@ -1,11 +1,10 @@
-# coding=utf-8
 """带旋转动画的 ChevronDown 按钮：同一图标通过 QPropertyAnimation 旋转指向不同方向。"""
 
 from PyQt6.QtCore import QEasingCurve, QPropertyAnimation, QRectF, Qt, pyqtProperty, pyqtSignal
 from PyQt6.QtGui import QColor, QPainter
 from PyQt6.QtWidgets import QWidget
-
-from qfluentwidgets import FluentIcon as FIF, drawIcon
+from qfluentwidgets import FluentIcon as FIF
+from qfluentwidgets import drawIcon
 
 
 class RotatingChevronButton(QWidget):

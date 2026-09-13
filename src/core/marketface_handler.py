@@ -1,9 +1,8 @@
-# coding=utf-8
 """QQNT marketface 专用的内存解密与校验工具。"""
 
 from io import BytesIO
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 
 try:
     from PIL import Image
@@ -45,7 +44,7 @@ def validate_gif(data: bytes) -> int:
         return frames
 
 
-def recover_marketface_data(file_path: str) -> Optional[Tuple[bytes, int]]:
+def recover_marketface_data(file_path: str) -> Optional[tuple[bytes, int]]:
     """读取并恢复单个 marketface 文件，成功时返回 (GIF数据, 帧数)。"""
     try:
         data = Path(file_path).read_bytes()

@@ -1,12 +1,11 @@
-# coding=utf-8
 """表情导出逻辑：marketface 内存解密 / APNG 转 GIF / 常规复制。纯函数模块，不依赖 Qt。"""
 
 import os
 import shutil
-from typing import Callable, List, Optional
+from typing import Callable, Optional
 
+from src.core.emoji_converter import convert_apng_to_gif, is_apng_file
 from src.core.emoji_scanner import get_actual_extension
-from src.core.emoji_converter import is_apng_file, convert_apng_to_gif
 from src.core.marketface_handler import recover_marketface_data
 
 
@@ -21,7 +20,7 @@ def _unique_dest_path(dst_dir, stem, ext):
 
 
 def export_emoji_files(
-    file_paths: List[str],
+    file_paths: list[str],
     dst_dir: str,
     folder_key: str,
     log_callback: Optional[Callable[[str], None]] = None,
@@ -45,7 +44,7 @@ def export_emoji_files(
     total_files = len(file_paths)
     copied_count = 0
 
-    for idx, src_file in enumerate(file_paths):
+    for _idx, src_file in enumerate(file_paths):
         if cancel_check and cancel_check():
             break
         if not src_file or not os.path.exists(src_file):

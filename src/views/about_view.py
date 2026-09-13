@@ -1,4 +1,3 @@
-# coding=utf-8
 """关于页：第一行程序信息，第二行作者信息。"""
 
 import html as html_mod
@@ -7,13 +6,22 @@ import re
 import time
 
 from PyQt6.QtCore import Qt, QUrl
-from PyQt6.QtGui import QDesktopServices, QFontDatabase, QIcon, QPixmap
+from PyQt6.QtGui import QDesktopServices, QFontDatabase, QPixmap
 from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 from PyQt6.QtWidgets import QApplication, QHBoxLayout, QLabel, QVBoxLayout, QWidget
-
-from qfluentwidgets import (BodyLabel, CaptionLabel, FluentIcon as FIF,
-                            HyperlinkButton, InfoBar, MessageBox, PushButton,
-                            StrongBodyLabel, SubtitleLabel, TitleLabel, qconfig)
+from qfluentwidgets import (
+    BodyLabel,
+    CaptionLabel,
+    HyperlinkButton,
+    InfoBar,
+    MessageBox,
+    PushButton,
+    StrongBodyLabel,
+    SubtitleLabel,
+    TitleLabel,
+    qconfig,
+)
+from qfluentwidgets import FluentIcon as FIF
 
 from src import __version__
 from src.core.update_checker import GITHUB_RELEASES_URL, UpdateChecker

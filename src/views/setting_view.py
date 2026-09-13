@@ -1,4 +1,3 @@
-# coding=utf-8
 """设置页：主题、默认保存路径、昵称缓存、日志开关。"""
 
 import os
@@ -6,11 +5,19 @@ import subprocess
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QFileDialog, QVBoxLayout, QWidget
-
-from qfluentwidgets import (CaptionLabel, FluentIcon as FIF, InfoBar,
-                            OptionsSettingCard, PushSettingCard, ScrollArea,
-                            SettingCardGroup, SubtitleLabel, SwitchSettingCard,
-                            qconfig, setTheme, Theme)
+from qfluentwidgets import (
+    CaptionLabel,
+    InfoBar,
+    OptionsSettingCard,
+    PushSettingCard,
+    ScrollArea,
+    SettingCardGroup,
+    SubtitleLabel,
+    SwitchSettingCard,
+    qconfig,
+    setTheme,
+)
+from qfluentwidgets import FluentIcon as FIF
 
 from src.app.signal_bus import signalBus
 from src.core.app_settings import cfg, sync_theme_to_cfg

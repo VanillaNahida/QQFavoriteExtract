@@ -1,8 +1,7 @@
-# coding=utf-8
 """排序/操作右键菜单构建（RoundMenu + CheckableMenu）。"""
 
-from qfluentwidgets import (Action, CheckableMenu, FluentIcon as FIF,
-                            MenuIndicatorType, RoundMenu)
+from qfluentwidgets import Action, CheckableMenu, MenuIndicatorType, RoundMenu
+from qfluentwidgets import FluentIcon as FIF
 
 SORT_KEYS = [
     ('name', '文件名称'),

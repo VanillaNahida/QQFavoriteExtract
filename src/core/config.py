@@ -1,8 +1,7 @@
-# coding=utf-8
 """QQ 聊天数据目录定位与分类枚举。"""
 
-import os
 import configparser
+import os
 from pathlib import Path
 
 from src.utils.helpers import read_file_with_correct_encoding

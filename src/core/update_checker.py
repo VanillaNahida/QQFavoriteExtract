@@ -1,4 +1,3 @@
-# coding=utf-8
 """检查更新：比对 GitHub Release 最新版本与本地版本（异步，不阻塞 UI）。"""
 
 import json

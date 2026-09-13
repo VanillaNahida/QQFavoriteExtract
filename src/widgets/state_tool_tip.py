@@ -1,4 +1,3 @@
-# coding=utf-8
 """右上角 StateToolTip 统一管理：定位联动、show/update/finish。
 
 StateToolTip 完成态淡出动画结束后会自行 deleteLater 销毁，
@@ -8,7 +7,6 @@ StateToolTip 完成态淡出动画结束后会自行 deleteLater 销毁，
 """
 
 from PyQt6.QtCore import QObject, QTimer
-
 from qfluentwidgets import StateToolTip
 
 

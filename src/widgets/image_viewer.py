@@ -1,15 +1,12 @@
-# coding=utf-8
 """大图查看窗口：双击预览图打开，支持 GIF 动图播放与静态大图等比缩放显示。"""
 
 import os
 
 from PyQt6.QtCore import QSize, Qt, QTimer
 from PyQt6.QtGui import QPixmap
-from PyQt6.QtWidgets import (QDialog, QHBoxLayout, QLabel, QSizeGrip,
-                             QVBoxLayout, QWidget)
-
-from qfluentwidgets import (BodyLabel, FluentIcon as FIF, TransparentToolButton,
-                            isDarkTheme, qconfig)
+from PyQt6.QtWidgets import QDialog, QHBoxLayout, QLabel, QSizeGrip, QVBoxLayout, QWidget
+from qfluentwidgets import BodyLabel, TransparentToolButton, isDarkTheme, qconfig
+from qfluentwidgets import FluentIcon as FIF
 
 from src.utils.pillow_gif_player import PillowGifPlayer
 

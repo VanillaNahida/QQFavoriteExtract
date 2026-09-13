@@ -1,15 +1,21 @@
-# coding=utf-8
 """主窗口：FluentWindow 四页导航注册 + 标题栏主题切换按钮。"""
 
 import os
 
 from PyQt6.QtCore import QTimer, QUrl
 from PyQt6.QtGui import QDesktopServices, QGuiApplication, QIcon
-
-from qfluentwidgets import (FluentIcon as FIF, FluentTitleBarButton,
-                            FluentWindow, MessageBox, NavigationItemPosition,
-                            SystemThemeListener, Theme, isDarkTheme,
-                            setTheme, toggleTheme)
+from qfluentwidgets import FluentIcon as FIF
+from qfluentwidgets import (
+    FluentTitleBarButton,
+    FluentWindow,
+    MessageBox,
+    NavigationItemPosition,
+    SystemThemeListener,
+    Theme,
+    isDarkTheme,
+    setTheme,
+    toggleTheme,
+)
 
 from src import __version__
 from src.core.app_settings import cfg
@@ -19,6 +25,7 @@ from src.views.log_view import LogView
 from src.views.setting_view import SettingView
 from src.views.workspace_view import WorkspaceView
 from src.widgets.teaching_tutorial import run_newbie_tutorial
+
 
 def _project_root():
     return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
