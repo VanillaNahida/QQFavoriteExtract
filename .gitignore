@@ -12,3 +12,4 @@ uv.lock
 .trae/
 dist/
 build/
+.ruff_cache/
