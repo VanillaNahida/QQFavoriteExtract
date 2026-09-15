@@ -3,7 +3,7 @@
 import os
 from dataclasses import dataclass
 
-from PyQt6.QtCore import QRectF, QSize, Qt, pyqtSignal
+from PyQt6.QtCore import QItemSelection, QItemSelectionModel, QRectF, QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QIcon, QKeySequence, QPainter, QPen, QPixmap, QShortcut
 from PyQt6.QtWidgets import QAbstractItemView, QListWidget, QListWidgetItem, QStyle, QStyledItemDelegate
 from qfluentwidgets import MenuAnimationType, themeColor
@@ -167,28 +167,50 @@ class EmojiPreviewWidget(QListWidget):
             self.request_load_more()
 
     # ---------- 多选操作 ----------
+    # 性能说明：几千个 item 时，逐个 item.setSelected(True) 每次都会触发
+    # itemSelectionChanged 信号与视口重绘，产生数千次信号/重绘风暴导致 UI 卡死。
+    # 因此统一改为 QItemSelection 批量构造 + selectionModel().select() 一次提交，
+    # Qt 内部只发一次 selectionChanged 并整体重绘一次。
+
+    def _batch_select(self, predicate):
+        """批量选中满足 predicate(item) 的条目，一次提交。"""
+        model = self.model()
+        selection = QItemSelection()
+        count = self.count()
+        for i in range(count):
+            item = self.item(i)
+            if predicate(item):
+                index = model.index(i, 0)
+                selection.select(index, index)
+        if not selection.isEmpty():
+            self.selectionModel().select(
+                selection, QItemSelectionModel.SelectionFlag.Select)
+        self._emit_status()
 
     def select_all_loaded(self):
-        for i in range(self.count()):
-            self.item(i).setSelected(True)
+        # QAbstractItemView.selectAll() 内部一次完成全选，天然避免逐项信号风暴
+        self.selectAll()
         self._emit_status()
 
     def clear_selection(self):
         self.clearSelection()
 
     def invert_selection(self):
+        # Toggle 标志一次提交：已选变未选、未选变已选
+        model = self.model()
+        selection = QItemSelection()
         for i in range(self.count()):
-            item = self.item(i)
-            item.setSelected(not item.isSelected())
+            index = model.index(i, 0)
+            selection.select(index, index)
+        if not selection.isEmpty():
+            self.selectionModel().select(
+                selection, QItemSelectionModel.SelectionFlag.Toggle)
         self._emit_status()
 
     def select_animated(self, animated=True):
-        for i in range(self.count()):
-            item = self.item(i)
-            is_animated = bool(item.data(Qt.ItemDataRole.UserRole + 1))
-            if is_animated == animated:
-                item.setSelected(True)
-        self._emit_status()
+        def match(item):
+            return bool(item.data(Qt.ItemDataRole.UserRole + 1)) == animated
+        self._batch_select(match)
 
     def get_selected_paths(self):
         return [item.data(Qt.ItemDataRole.UserRole) for item in self.selectedItems()
