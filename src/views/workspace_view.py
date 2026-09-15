@@ -1,6 +1,7 @@
 """表情提取工作台：配置 → 扫描 → 预览 → 提取 一条清晰路径。"""
 
 import os
+import random
 import subprocess
 from functools import partial
 from html import escape as _html_escape
@@ -53,6 +54,7 @@ from src.utils.helpers import format_exc, format_file_size, get_asset_path, sani
 from src.widgets.emoji_detail_widget import DetailPanelCard, EmojiDetailWidget
 from src.widgets.emoji_preview_widget import EmojiEntry, EmojiPreviewWidget
 from src.widgets.image_viewer import LargeImageViewer
+from src.widgets.preview_hint import LOADING_IMAGES, PreviewBottomBar
 from src.widgets.rotating_chevron_button import RotatingChevronButton
 from src.widgets.state_tool_tip import StateToolTipManager
 
@@ -93,6 +95,11 @@ class WorkspaceView(QWidget):
         self._drawer_width_cache = 0
         self._image_viewer = None   # 大图预览窗口（单例复用，关闭仅隐藏）
         self._help_tip = None       # 当前显示的问号教学气泡（复用单例，点击重开）
+        # 到底提示：用户已在底部仍继续向下滚动时短暂展示（见 _on_bottom_over_scroll）
+        self._end_timer = QTimer(self)
+        self._end_timer.setSingleShot(True)
+        self._end_timer.setInterval(3000)
+        self._end_timer.timeout.connect(self._on_end_hint_timeout)
 
         # 服务
         self.user_service = UserService(self)
@@ -244,6 +251,15 @@ class WorkspaceView(QWidget):
         self.stack.addWidget(self.preview_widget)  # index 1
         self.stack.addWidget(self.loading_page)    # index 2
         preview_layout.addWidget(self.stack, 1)
+
+        # 底部提示条：改为半透明悬浮窗，叠加在预览区底部之上。
+        # 不参与布局、不预留任何空白高度；仅在懒加载/到底提示时短暂显示，其余时间隐藏。
+        # 鼠标点击穿透到下方缩略图，不遮挡任何预览操作。父级设为预览堆栈，
+        # 以堆栈坐标定位到底部居中。
+        self._bottom_bar_mode = None
+        self.bottom_bar = PreviewBottomBar(self.stack)
+        self._position_hint_overlay()
+
         host_layout.addWidget(self.preview_card)
 
         self.content_layout.addWidget(self.preview_host, 1)
@@ -262,6 +278,8 @@ class WorkspaceView(QWidget):
         # ---- 底部状态行 ----
         self.status_label = CaptionLabel('请先选择用户与分类，然后点击「扫描表情包并预览」')
         root.addWidget(self.status_label)
+
+        self._show_preview_or_empty()   # 初始为空状态页：提示条占位一并收起
 
     # ---------- 问号帮助按钮 ----------
 
@@ -321,21 +339,15 @@ class WorkspaceView(QWidget):
         return page
 
     def _build_loading_page(self):
-        """预览加载占位页：Loading 图 + 提示文字 + 不确定进度条"""
+        """预览加载占位页：随机提示图 + 提示文字 + 不确定进度条"""
         page = QWidget(self)
         layout = QVBoxLayout(page)
         layout.setSpacing(12)
 
-        icon_label = QLabel(page)
-        icon_pixmap = QPixmap(get_asset_path('Loading.png'))
-        if icon_pixmap.isNull():
-            icon_pixmap = FIF.EMOJI_TAB_SYMBOLS.icon().pixmap(160, 160)
-        else:
-            icon_pixmap = icon_pixmap.scaled(
-                160, 128, Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation)
-        icon_label.setPixmap(icon_pixmap)
-        icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # 提示图每次随机取一张，尺寸与排版保持原有样式
+        self.loading_icon_label = QLabel(page)
+        self.loading_icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._roll_loading_image()
 
         text_label = BodyLabel('请稍后，正在加载预览……')
         text_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -349,12 +361,23 @@ class WorkspaceView(QWidget):
         bar_row.addStretch()
 
         layout.addStretch(2)
-        layout.addWidget(icon_label)
+        layout.addWidget(self.loading_icon_label)
         layout.addWidget(text_label)
         layout.addSpacing(6)
         layout.addLayout(bar_row)
         layout.addStretch(3)
         return page
+
+    def _roll_loading_image(self):
+        """随机换一张加载提示图（Loading_1/2/3 中等比缩放到 160x128 以内）。"""
+        pixmap = QPixmap(get_asset_path(random.choice(LOADING_IMAGES)))
+        if pixmap.isNull():
+            pixmap = FIF.EMOJI_TAB_SYMBOLS.icon().pixmap(160, 128)
+        else:
+            pixmap = pixmap.scaled(
+                160, 128, Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation)
+        self.loading_icon_label.setPixmap(pixmap)
 
     # ---------- 信号连接 ----------
 
@@ -371,6 +394,8 @@ class WorkspaceView(QWidget):
         self.category_combo.currentIndexChanged.connect(self.on_category_changed)
 
         self.preview_widget.loadMoreRequested.connect(self._start_preview_batch)
+        self.preview_widget.bottomOverScroll.connect(self._on_bottom_over_scroll)
+        self.preview_widget.verticalScrollBar().valueChanged.connect(self._on_preview_scrolled)
         self.preview_widget.sortRequested.connect(self._on_sort_requested)
         self.preview_widget.extractCurrentRequested.connect(self._on_export_current)
         self.preview_widget.extractSelectedRequested.connect(self._on_export_selected)
@@ -391,8 +416,8 @@ class WorkspaceView(QWidget):
         if saved:
             self.save_path_edit.setText(to_display_path(saved))
             self.save_path = saved
-        # 详情面板折叠状态
-        self.detail_widget.set_collapsed(not cfg.get(cfg.detailPanelExpanded))
+        # 详情面板启动默认状态：由设置页配置项控制（默认收起）
+        self.detail_widget.set_collapsed(cfg.get(cfg.detailPanelStartCollapsed))
         # 配置面板启动时默认展开：箭头初始化为朝上（180°），
         # 保证首次点击收起时也有 180°→0° 的旋转动画
         self.config_collapse_button.set_direction(180, animated=False)
@@ -542,6 +567,8 @@ class WorkspaceView(QWidget):
         self.is_loading = False
         self.current_folder_key = folder
         self.preview_widget.set_entries([])
+        self._end_timer.stop()      # 取消上一轮遗留的到底提示计时
+        self._update_bottom_bar()   # 清空列表后立即收起上一轮的底部提示条
         self.detail_widget.show_placeholder('未选中表情')
 
         self.scan_button.setEnabled(False)
@@ -604,6 +631,9 @@ class WorkspaceView(QWidget):
         start_idx = self.preview_widget.loaded_count
         entries = self.preview_widget.entries[start_idx:start_idx + self.preview_widget.batch_size]
         paths = [e.path for e in entries]
+        if start_idx == 0:
+            # 首屏整页占位：每次加载随机换一张提示图
+            self._roll_loading_image()
 
         worker = PreviewLoaderWorker(
             self.generation, paths, self.current_folder_key == 'marketface', start_idx, len(paths))
@@ -625,12 +655,14 @@ class WorkspaceView(QWidget):
         if gen != self.generation:
             return
         self.is_loading = False
-        self._show_preview_or_empty()
-        # 若滚动条仍在底部附近，继续加载以填满视口
+        # 若滚动条仍在底部附近，先续接下一批再刷新界面：
+        # 避免批次之间提示条在「加载中」与其它状态间来回切换而闪动提示图
         if self.preview_widget.loaded_count < len(self.preview_widget.entries):
             scroll_bar = self.preview_widget.verticalScrollBar()
             if scroll_bar.maximum() <= 0 or scroll_bar.value() > scroll_bar.maximum() * 0.9:
                 self._start_preview_batch()
+                return
+        self._show_preview_or_empty()
 
     # ---------- 排序 ----------
 
@@ -889,7 +921,6 @@ class WorkspaceView(QWidget):
             self._animate_detail_expand()
         else:
             self._animate_detail_collapse()
-        cfg.set(cfg.detailPanelExpanded, not collapsed)
 
     def _apply_detail_visibility(self, collapsed):
         # 收起时朝左（90°）、展开时朝右（-90°）；抽屉显隐由动画的 finished 回调控制
@@ -981,7 +1012,6 @@ class WorkspaceView(QWidget):
         self._apply_detail_visibility(True)
 
     def _on_detail_collapsed(self, collapsed):
-        cfg.set(cfg.detailPanelExpanded, not collapsed)
         self._apply_detail_visibility(collapsed)
         # 详情控件内部折叠按钮触发的即时切换（不带动画）
         self._layout_detail_drawer(collapsed, animate=False)
@@ -1045,11 +1075,80 @@ class WorkspaceView(QWidget):
         第一批缩略图到达后切回预览网格。
         """
         if len(self.preview_widget.entries) == 0:
-            self.stack.setCurrentIndex(0)
+            index = 0
         elif self.is_loading and self.preview_widget.loaded_count == 0:
-            self.stack.setCurrentIndex(2)
+            index = 2
         else:
-            self.stack.setCurrentIndex(1)
+            index = 1
+        self.stack.setCurrentIndex(index)
+        # 悬浮提示条随预览堆栈尺寸变化重新定位到底部居中。
+        # 空状态/整页加载页下由 _update_bottom_bar 计算为隐藏，不占任何空间。
+        self._position_hint_overlay()
+        self._update_bottom_bar()
+
+    # ---------- 底部提示条 ----------
+
+    def _on_bottom_over_scroll(self):
+        """已在最底部仍继续向下滚动/翻页/拖动：临时展示 3 秒到底提示。
+
+        若还有未加载的缩略图，则交给加载提示（不显示到底提示）。
+        """
+        total = len(self.preview_widget.entries)
+        loaded = self.preview_widget.loaded_count
+        if self.is_loading or total == 0 or loaded < total:
+            return
+        self._end_timer.start()   # 重复触发时重新计时
+        self._update_bottom_bar()
+
+    def _on_end_hint_timeout(self):
+        """3 秒展示结束：收起到底提示。"""
+        self._update_bottom_bar()
+
+    def _on_preview_scrolled(self, _value):
+        """滚动位置变化：离开底部立即收起到底提示，并刷新提示条。"""
+        if self._end_timer.isActive() and not self._is_preview_at_bottom():
+            self._end_timer.stop()
+        self._update_bottom_bar()
+
+    def _update_bottom_bar(self):
+        """底部提示条状态机：
+
+        - 懒加载中：显示加载提示（常驻至本批加载结束）
+        - 已全部加载且在底部、且处于 3 秒展示窗口：显示到底提示
+        """
+        total = len(self.preview_widget.entries)
+        loaded = self.preview_widget.loaded_count
+        if total == 0 or loaded == 0:
+            mode = None
+        elif self.is_loading:
+            mode = PreviewBottomBar.LOADING
+        elif self._end_timer.isActive() and loaded >= total and self._is_preview_at_bottom():
+            mode = PreviewBottomBar.END
+        else:
+            mode = None
+        if mode == self._bottom_bar_mode:
+            return
+        self._bottom_bar_mode = mode
+        self.bottom_bar.set_mode(mode)
+        self._position_hint_overlay()
+
+    def _position_hint_overlay(self):
+        """将底部悬浮提示条定位到预览区底部居中（父级为预览堆栈，坐标为相对堆栈）。
+
+        QStackedWidget 每次切换页面都会把当前页 raise() 到最上层，
+        从而把悬浮条压到表情之下，因此这里重新 raise() 保证悬浮在其上。
+        （WA_TransparentForMouseEvents 已确保点击穿透，不会挡住表情选点。）
+        """
+        bar = self.bottom_bar
+        x = max(0, (self.stack.width() - bar.width()) // 2)
+        y = max(0, self.stack.height() - bar.height() - 16)
+        bar.move(x, y)
+        bar.raise_()
+
+    def _is_preview_at_bottom(self):
+        """网格是否已滑到最底部（内容不足一屏时视为已到底）。"""
+        scroll_bar = self.preview_widget.verticalScrollBar()
+        return scroll_bar.value() >= scroll_bar.maximum() - 4
 
     # ---------- 线程管理 ----------
 
@@ -1068,6 +1167,7 @@ class WorkspaceView(QWidget):
         self.generation += 1
         self.is_loading = False
         self.preview_widget.set_entries([])
+        self._end_timer.stop()
         self.detail_widget.show_placeholder('未选中表情')
         self._show_preview_or_empty()
         # 保持配置面板当前的折叠状态，避免下拉框选择项目时配置面板异常收起再展开
@@ -1090,6 +1190,8 @@ class WorkspaceView(QWidget):
     def resizeEvent(self, e):
         super().resizeEvent(e)
         self.tooltip.reposition()
+        # 底部悬浮提示条随预览区尺寸变化重新定位到底部居中
+        self._position_hint_overlay()
         # 保持悬浮抽屉贴合预览区右侧边缘（不改变预览区宽度）
         self._layout_detail_drawer(self.detail_widget.is_collapsed(), animate=False)
         # 窗口变窄时自动收起详情面板（不覆盖用户手动折叠状态）

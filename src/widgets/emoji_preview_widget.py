@@ -3,7 +3,7 @@
 import os
 from dataclasses import dataclass
 
-from PyQt6.QtCore import QItemSelection, QItemSelectionModel, QRectF, QSize, Qt, pyqtSignal
+from PyQt6.QtCore import QEvent, QItemSelection, QItemSelectionModel, QRectF, QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QIcon, QKeySequence, QPainter, QPen, QPixmap, QShortcut
 from PyQt6.QtWidgets import QAbstractItemView, QListWidget, QListWidgetItem, QStyle, QStyledItemDelegate
 from qfluentwidgets import MenuAnimationType, themeColor
@@ -75,6 +75,7 @@ class EmojiPreviewWidget(QListWidget):
     """
 
     loadMoreRequested = pyqtSignal()
+    bottomOverScroll = pyqtSignal()           # 已在最底部仍尝试继续向下（滚轮/键盘/拖动）
     sortRequested = pyqtSignal(str, str)      # (key, order)
     extractCurrentRequested = pyqtSignal()
     extractSelectedRequested = pyqtSignal()
@@ -111,6 +112,9 @@ class EmojiPreviewWidget(QListWidget):
         self.setItemDelegate(EmojiItemDelegate(self))
 
         self.verticalScrollBar().valueChanged.connect(self._on_scroll)
+        # 拖动/点击滚动条后松手：判断是否属于「已在底部仍继续向下」
+        self._sb_pressed = False
+        self.verticalScrollBar().installEventFilter(self)
         self.itemSelectionChanged.connect(self._emit_status)
 
         # 快捷键：Ctrl+A 全选已加载，Ctrl+D 清空选择
@@ -166,6 +170,37 @@ class EmojiPreviewWidget(QListWidget):
         if scroll_bar.maximum() > 0 and value > scroll_bar.maximum() * 0.9:
             self.request_load_more()
 
+    # ---------- 「已在底部仍继续向下」检测 ----------
+    # 到达滚动条最大值后继续滚动不会改变滚动值，拿不到 valueChanged，
+    # 因此需要分别拦截滚轮、键盘与滚动条拖动的输入。
+
+    def _at_bottom(self):
+        """滚动条是否已在最底部（内容不足一屏时也视为已到底）。"""
+        scroll_bar = self.verticalScrollBar()
+        return scroll_bar.value() >= scroll_bar.maximum()
+
+    def wheelEvent(self, e):
+        delta = e.angleDelta().y() or e.pixelDelta().y()
+        if delta < 0 and self._at_bottom():
+            self.bottomOverScroll.emit()
+        super().wheelEvent(e)
+
+    def keyPressEvent(self, e):
+        if e.key() in (Qt.Key.Key_Down, Qt.Key.Key_PageDown, Qt.Key.Key_End) and self._at_bottom():
+            self.bottomOverScroll.emit()
+        super().keyPressEvent(e)
+
+    def eventFilter(self, obj, event):
+        # QScrollBar 不发出 sliderPressed/sliderReleased，只能在事件过滤器里跟踪
+        if obj is self.verticalScrollBar():
+            if event.type() == QEvent.Type.MouseButtonPress:
+                self._sb_pressed = True
+            elif event.type() == QEvent.Type.MouseButtonRelease:
+                pressed, self._sb_pressed = self._sb_pressed, False
+                if pressed and self._at_bottom():
+                    self.bottomOverScroll.emit()
+        return False
+
     # ---------- 多选操作 ----------
     # 性能说明：几千个 item 时，逐个 item.setSelected(True) 每次都会触发
     # itemSelectionChanged 信号与视口重绘，产生数千次信号/重绘风暴导致 UI 卡死。
@@ -219,6 +254,23 @@ class EmojiPreviewWidget(QListWidget):
     def get_current_path(self):
         item = self.currentItem()
         return item.data(Qt.ItemDataRole.UserRole) if item else None
+
+    # ---------- 点击切换选中 ----------
+
+    def mousePressEvent(self, e):
+        # 左键无修饰键点击已选中项：再点一次取消选中。
+        # ExtendedSelection 默认再次点击不撤销选中，这里手动触发取消，
+        # 便于「点选表情 → 点详情 → 再点取消」的常规操作。
+        # 双击打开大图不冲突：Qt 将第二次按下派发为 MouseButtonDblClick，
+        # 不会进入本方法。
+        if (e.button() == Qt.MouseButton.LeftButton
+                and e.modifiers() == Qt.KeyboardModifier.NoModifier):
+            item = self.itemAt(e.pos())
+            if item is not None and item.isSelected():
+                item.setSelected(False)
+                self._emit_status()
+                return
+        super().mousePressEvent(e)
 
     # ---------- 右键菜单 ----------
 

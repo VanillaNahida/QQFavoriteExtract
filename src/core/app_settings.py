@@ -19,8 +19,8 @@ class AppConfig(QConfig):
     savePath = ConfigItem("Workspace", "savePath", "")
     lastDataPath = ConfigItem("Workspace", "lastDataPath", "")
 
-    # 详情面板
-    detailPanelExpanded = ConfigItem("Workspace", "detailPanelExpanded", True)
+    # 详情面板：启动时的默认状态（True 收起 / False 展开；配置文件无此键时默认收起）
+    detailPanelStartCollapsed = ConfigItem("Workspace", "detailPanelStartCollapsed", True)
 
     # 日志
     logEnabled = ConfigItem("Log", "logEnabled", True)

@@ -66,6 +66,16 @@ class SettingView(ScrollArea):
             personal_group,
         )
         personal_group.addSettingCard(self.auto_update_card)
+
+        # 详情预览默认状态：启动时收起还是展开
+        self.detail_default_card = SwitchSettingCard(
+            FIF.EMOJI_TAB_SYMBOLS,
+            '详情预览启动默认收起',
+            '开启后启动时详情预览面板默认收起；关闭则默认展开（选中表情时始终自动展开）',
+            cfg.detailPanelStartCollapsed,
+            personal_group,
+        )
+        personal_group.addSettingCard(self.detail_default_card)
         v.addWidget(personal_group)
 
         # 工作台：默认保存路径
@@ -90,11 +100,13 @@ class SettingView(ScrollArea):
             cache_path,
             data_group,
         )
+        # 数据目录：展示软件数据目录所在文件夹（配置、昵称缓存、日志等均在此）
+        data_dir = get_app_data_dir()
         self.open_cache_button = PushSettingCard(
             '打开文件夹',
             FIF.FOLDER,
-            '缓存位置',
-            cache_path,
+            '数据目录',
+            to_display_path(data_dir),
             data_group,
         )
         data_group.addSettingCard(self.cache_card)
@@ -167,14 +179,11 @@ class SettingView(ScrollArea):
         service.deleteLater()
 
     def _open_cache_folder(self):
-        cache_path = os.path.join(get_app_data_dir(), '用户昵称缓存.json')
-        if os.path.exists(cache_path):
-            try:
-                subprocess.Popen(['explorer', '/select,', os.path.normpath(cache_path)])
-            except Exception as e:
-                InfoBar.error('打开失败', f'无法打开缓存文件夹: {e}', duration=5000, parent=self)
-        else:
-            InfoBar.info('提示', '缓存文件不存在', duration=5000, parent=self)
+        data_dir = get_app_data_dir()
+        try:
+            subprocess.Popen(['explorer', os.path.normpath(data_dir)])
+        except Exception as e:
+            InfoBar.error('打开失败', f'无法打开数据目录: {e}', duration=5000, parent=self)
 
     def _reset_tutorial(self):
         """重置新手教程标记：下次启动软件时重新弹出教程询问。"""
