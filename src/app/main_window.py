@@ -24,7 +24,7 @@ from src.views.about_view import AboutView
 from src.views.log_view import LogView
 from src.views.setting_view import SettingView
 from src.views.workspace_view import WorkspaceView
-from src.widgets.teaching_tutorial import run_newbie_tutorial
+from src.widgets.teaching_tutorial import TUTORIAL_VERSION, run_newbie_tutorial
 
 
 def _project_root():
@@ -116,18 +116,23 @@ class MainWindow(FluentWindow):
     # ---------- 新手教程 ----------
 
     def _maybe_show_newbie_tutorial(self):
-        """首次使用（tutorialDone 为 False）时弹窗询问是否查看新手教程。
+        """首次使用或教程内容更新时，弹窗询问是否查看新手教程。
 
-        只有用户明确点击「查看教程」或「跳过」后才记录 tutorialDone；
+        以教程内容版本号（cfg.tutorialVersion 与 TUTORIAL_VERSION）判定：
+        已看过旧版教程的用户在软件更新后也会重新收到新版教程提示。
+        只有用户明确点击「查看教程」或「跳过」后才记录版本号；
         直接关闭弹窗/主窗口则不记录，下次启动仍会询问。
         """
-        if cfg.get(cfg.tutorialDone):
+        if cfg.get(cfg.tutorialVersion) >= TUTORIAL_VERSION:
             return
-        box = MessageBox(
-            '欢迎使用 QQ表情包批量提取工具',
-            '是否查看新手教程？\n教程将以气泡形式逐项介绍各功能与按钮的用法。',
-            self,
-        )
+        # tutorialDone 为 True 表示看过旧版教程，此时提示语改为「已更新」
+        if cfg.get(cfg.tutorialDone):
+            title = '新手教程已更新'
+            content = '教程内容有更新，新增了详情面板快捷键等说明。\n是否查看新版教程？'
+        else:
+            title = '欢迎使用 QQ表情包批量提取工具'
+            content = '是否查看新手教程？\n教程将以气泡形式逐项介绍各功能与按钮的用法。'
+        box = MessageBox(title, content, self)
         box.yesButton.setText('查看教程')
         box.cancelButton.setText('跳过')
 
@@ -141,9 +146,10 @@ class MainWindow(FluentWindow):
 
         if decided['value'] == 'yes':
             run_newbie_tutorial(self)
-        # 仅明确选择过（查看教程或跳过）才持久化，避免启动后直接关闭也被标记
+        # 仅明确选择过（查看教程或跳过）才持久化，避免启动后直接关闭也被记录
         if decided['value']:
             cfg.set(cfg.tutorialDone, True)
+            cfg.set(cfg.tutorialVersion, TUTORIAL_VERSION)
 
     def initNavigation(self):
         self.addSubInterface(self.workspace_view, FIF.EMOJI_TAB_SYMBOLS, '工作台')

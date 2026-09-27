@@ -22,11 +22,19 @@ class AppConfig(QConfig):
     # 详情面板：启动时的默认状态（True 收起 / False 展开；配置文件无此键时默认收起）
     detailPanelStartCollapsed = ConfigItem("Workspace", "detailPanelStartCollapsed", True)
 
+    # 详情面板：选中表情时是否自动展开（默认开启，保持原有交互）
+    autoExpandDetail = ConfigItem("Workspace", "autoExpandDetail", False)
+
     # 日志
     logEnabled = ConfigItem("Log", "logEnabled", True)
 
     # 新手教程：是否已完成/关闭（False 时下次启动会弹出询问）
     tutorialDone = ConfigItem("App", "tutorialDone", False)
+
+    # 新手教程：用户已看过的教程内容版本号。与 teaching_tutorial.TUTORIAL_VERSION
+    # 比较，落后时在软件更新后重新提示查看新版教程。默认 0 表示从未看过，
+    # 老版本升级上来的用户（文件无此键）同样视为 0，从而能收到新版教程。
+    tutorialVersion = ConfigItem("App", "tutorialVersion", 0)
 
     # 更新：启动时自动检查 GitHub Release 是否有新版本（默认开启）
     autoCheckUpdate = ConfigItem("App", "autoCheckUpdate", True)

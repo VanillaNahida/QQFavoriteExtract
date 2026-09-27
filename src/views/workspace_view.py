@@ -7,7 +7,7 @@ from functools import partial
 from html import escape as _html_escape
 
 from PyQt6.QtCore import QEasingCurve, QPropertyAnimation, QRect, Qt, QTimer
-from PyQt6.QtGui import QPixmap
+from PyQt6.QtGui import QKeySequence, QPixmap, QShortcut
 from PyQt6.QtWidgets import QFileDialog, QFormLayout, QHBoxLayout, QLabel, QStackedWidget, QVBoxLayout, QWidget
 from qfluentwidgets import (
     BodyLabel,
@@ -212,7 +212,7 @@ class WorkspaceView(QWidget):
         export_bar.addWidget(self.export_all_button)
         export_bar.addStretch()
         self.detail_toggle_button = RotatingChevronButton(self)
-        self.detail_toggle_button.setToolTip('收起详情面板')
+        self.detail_toggle_button.setToolTip('收起详情面板（快捷键：空格）')
         self.detail_toggle_button.clicked.connect(self._toggle_detail)
         export_bar.addWidget(self.detail_toggle_button)
         root.addLayout(export_bar)
@@ -405,6 +405,12 @@ class WorkspaceView(QWidget):
         self.preview_widget.itemSelectionChanged.connect(self._on_selection_changed)
 
         self.detail_widget.collapsedChanged.connect(self._on_detail_collapsed)
+
+        # 空格快捷键：开合详情预览面板。作用域限定在预览网格及其子控件内，
+        # 避免窗口全局空格与「导出」等按钮、输入框抢键（Qt 快捷键优先于控件按键）。
+        QShortcut(QKeySequence('Space'), self.preview_widget,
+                  activated=self._toggle_detail,
+                  context=Qt.ShortcutContext.WidgetWithChildrenShortcut)
 
         # 设置页修改保存路径后，同步工作台输入框与导出目标
         signalBus.savePathChanged.connect(self._on_save_path_synced)
@@ -692,22 +698,35 @@ class WorkspaceView(QWidget):
     # ---------- 详情预览 ----------
 
     def _on_selection_changed(self):
+        auto_expand = cfg.get(cfg.autoExpandDetail)
         item = self.preview_widget.currentItem()
         if item is None or not item.isSelected():
             self.detail_widget.show_placeholder('未选中表情')
-            # 取消选中时自动收起详情面板（带动画）
-            if not self.detail_widget.is_collapsed():
+            # 仅在自动弹出模式下，取消选中时才自动收起；手动模式保持用户当前的开合状态
+            if auto_expand and not self.detail_widget.is_collapsed():
                 self.detail_widget.set_collapsed(True, persist=False)
                 self._animate_detail_collapse()
+            return
+        # 选中项目时按设置自动展开详情面板（带动画）
+        if auto_expand and self.detail_widget.is_collapsed():
+            self.detail_widget.set_collapsed(False, persist=False)
+            self._animate_detail_expand()
+        # 面板处于收起状态时不预加载详情，避免无谓的解密/解码；
+        # 用户手动展开（箭头按钮 / 空格）时由 _refresh_detail_from_selection 补加载
+        if self.detail_widget.is_collapsed():
+            return
+        self._refresh_detail_from_selection()
+
+    def _refresh_detail_from_selection(self):
+        """按当前选中项刷新详情内容；无有效选中则显示占位提示。"""
+        item = self.preview_widget.currentItem()
+        if item is None or not item.isSelected():
+            self.detail_widget.show_placeholder('未选中表情')
             return
         path = item.data(Qt.ItemDataRole.UserRole)
         if not path or not os.path.exists(path):
             self.detail_widget.show_placeholder('文件不存在')
             return
-        # 选中项目时自动展开详情面板（带动画）
-        if self.detail_widget.is_collapsed():
-            self.detail_widget.set_collapsed(False, persist=False)
-            self._animate_detail_expand()
         self.detail_widget.set_info(self._build_detail_info(path))
         self._load_detail(path)
 
@@ -919,13 +938,16 @@ class WorkspaceView(QWidget):
         self.detail_widget.set_collapsed(not collapsed, persist=False)
         if collapsed:
             self._animate_detail_expand()
+            # 手动展开时补加载当前选中项的详情（收起期间不预加载）
+            self._refresh_detail_from_selection()
         else:
             self._animate_detail_collapse()
 
     def _apply_detail_visibility(self, collapsed):
         # 收起时朝左（90°）、展开时朝右（-90°）；抽屉显隐由动画的 finished 回调控制
         self.detail_toggle_button.set_direction(90 if collapsed else -90)
-        self.detail_toggle_button.setToolTip('展开详情面板' if collapsed else '收起详情面板')
+        action = '展开详情面板' if collapsed else '收起详情面板'
+        self.detail_toggle_button.setToolTip(f'{action}（快捷键：空格）')
 
     def _detail_drawer_width(self):
         """抽屉固定宽度：内容宽度 + 卡片边距，不随预览区宽度变化。

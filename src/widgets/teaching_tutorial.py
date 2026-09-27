@@ -12,6 +12,10 @@ from qfluentwidgets import PrimaryPushButton, PushButton, TeachingTip, TeachingT
 
 from src.core.app_settings import cfg
 
+# 教程内容版本号：只要下方步骤（文案、目标控件、数量）发生任何变化，就必须 +1。
+# 启动时与 cfg.tutorialVersion 比较，落后即在软件更新后重新提示查看新版教程。
+TUTORIAL_VERSION = 2.0
+
 
 @dataclass
 class TutorialStep:
@@ -128,6 +132,7 @@ class NewbieTutorial(QObject):
         except Exception:
             pass
         cfg.set(cfg.tutorialDone, True)
+        cfg.set(cfg.tutorialVersion, TUTORIAL_VERSION)
         if self.on_finished:
             self.on_finished()
         self.deleteLater()
@@ -157,10 +162,14 @@ def run_newbie_tutorial(window, on_finished=None):
                      '点击开始扫描所选分类，完成后自动在下方预览区展示全部表情。',
                      TeachingTipTailPosition.TOP),
         TutorialStep(ws.preview_card, '预览区',
-                     '右键可排序与快捷多选；单击查看详情与动图，双击打开大图窗口。',
+                     '右键可排序与快捷多选；按住 Ctrl 点击可挑选多个表情，'
+                     'Ctrl+A 全选已加载、Ctrl+D 清空选择；单击打开详情面板（默认关闭），按 Space 键（空格键）可展开或收起详情面板。双击打开大图窗口。'
+                     '您可在「设置 - 个性化」中的「选中表情时自动展开」选项调整该行为。',
                      TeachingTipTailPosition.BOTTOM),
         TutorialStep(ws.detail_toggle_button, '展开 / 收起表情详细面板',
-                     '单击预览区表情后，右侧会显示大图、动图与属性信息；点击导出栏右侧此按钮可随时展开或收起详情面板。',
+                     '单击预览区表情后，右侧会显示大图、动图与属性信息，默认关闭该功能；'
+                     '点击导出栏右侧此按钮或按空格键，即可展开或收起详情面板。'
+                     '您可在「设置 - 个性化」中的「选中表情时自动展开」选项调整该行为。',
                      TeachingTipTailPosition.TOP),
         TutorialStep(ws.export_selected_button, '导出表情',
                      '先点选或框选多个表情，再点击「导出选中表情」批量导出；右侧按钮导出全部。',

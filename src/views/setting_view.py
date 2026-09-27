@@ -71,11 +71,21 @@ class SettingView(ScrollArea):
         self.detail_default_card = SwitchSettingCard(
             FIF.EMOJI_TAB_SYMBOLS,
             '详情预览启动默认收起',
-            '开启后启动时详情预览面板默认收起；关闭则默认展开（选中表情时始终自动展开）',
+            '开启后启动时详情预览面板默认收起；关闭则默认展开',
             cfg.detailPanelStartCollapsed,
             personal_group,
         )
         personal_group.addSettingCard(self.detail_default_card)
+
+        # 详情预览自动弹出：选中表情时是否自动展开右侧面板
+        self.auto_expand_detail_card = SwitchSettingCard(
+            FIF.VIEW,
+            '选中表情时自动展开',
+            '开启后点选预览区表情会自动弹出右侧详情面板；关闭后仅在点击导出栏的箭头按钮或按空格键时打开',
+            cfg.autoExpandDetail,
+            personal_group,
+        )
+        personal_group.addSettingCard(self.auto_expand_detail_card)
         v.addWidget(personal_group)
 
         # 工作台：默认保存路径
@@ -188,4 +198,6 @@ class SettingView(ScrollArea):
     def _reset_tutorial(self):
         """重置新手教程标记：下次启动软件时重新弹出教程询问。"""
         cfg.set(cfg.tutorialDone, False)
+        # 版本号一并清零：启动判定只看版本号，仅重置 tutorialDone 不会生效
+        cfg.set(cfg.tutorialVersion, 0)
         InfoBar.success('已重置', '下次启动软件时将重新弹出新手教程', duration=5000, parent=self)
