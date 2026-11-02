@@ -234,7 +234,7 @@ uv run python -m src.main
 本地预览某次发版的更新日志（需已存在对应 tag）：
 
 ```bash
-uv run python .github/scripts/changelog.py --to v1.5.5 --repo VanillaNahida/QQFavoriteExtract
+uv run python .github/scripts/changelog.py --to v1.5.6 --repo VanillaNahida/QQFavoriteExtract
 ```
 
 ### 开发约定
