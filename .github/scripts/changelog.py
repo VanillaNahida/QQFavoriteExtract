@@ -3,7 +3,7 @@
 
 由 .github/workflows/release.yml 在打 tag 后调用，也可以本地手动跑：
 
-    python .github/scripts/changelog.py --to v1.5.6 --repo VanillaNahida/QQFavoriteExtract
+    python .github/scripts/changelog.py --to vx.x.x --repo VanillaNahida/QQFavoriteExtract
 
 输出的 Markdown 结构：
 
@@ -12,7 +12,7 @@
     ### ✨ 新功能
     - 新增「导出完成后自动打开文件夹」设置
 
-    **完整变更**：[v1.5.5...v1.5.6](https://github.com/owner/repo/compare/v1.5.5...v1.5.6)
+    **完整变更**：[vx.x.x...vx.x.x](https://github.com/owner/repo/compare/vx.x.x...vx.x.x)
 
 再（可选）把 .github/templates/release-notes-tail.md 里的 <版本>、
 {{PYINSTALLER_ONEFILE_URL}}、{{PYINSTALLER_PORTABLE_URL}} 替换成真实下载直链后追加在末尾，
