@@ -25,6 +25,10 @@ class AppConfig(QConfig):
     # 详情面板：选中表情时是否自动展开（默认开启，保持原有交互）
     autoExpandDetail = ConfigItem("Workspace", "autoExpandDetail", False)
 
+    # 导出：完成后是否自动打开所在文件夹（默认关闭——批量提取时会反复弹出
+    # 文件夹窗口；关闭后改为在右上角通知里展示完整导出路径）
+    openFolderAfterExport = ConfigItem("Workspace", "openFolderAfterExport", False)
+
     # 日志
     logEnabled = ConfigItem("Log", "logEnabled", True)
 

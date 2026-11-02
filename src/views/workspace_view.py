@@ -841,10 +841,20 @@ class WorkspaceView(QWidget):
 
     def _on_export_finished(self, gen, success, output_dir):
         if gen == self.generation:
+            display_dir = to_display_path(output_dir)
             self.tooltip.finish('导出完成', f'成功导出 {success} 个表情')
-            InfoBar.success('导出完成', f'成功导出 {success} 个表情', duration=5000, parent=self)
-            signalBus.logMessage.emit('info', f'导出完成：成功 {success} 个 -> {to_display_path(output_dir)}')
-            self._open_in_explorer(output_dir)
+            if cfg.get(cfg.openFolderAfterExport):
+                InfoBar.success('导出完成', f'成功导出 {success} 个表情', duration=5000, parent=self)
+                self._open_in_explorer(output_dir)
+            else:
+                # 默认不弹出文件夹窗口：改为在右上角通知里展示完整导出路径
+                InfoBar.success(
+                    '导出完成',
+                    f'成功导出 {success} 个表情，已保存到：{display_dir}',
+                    duration=10000,
+                    parent=self,
+                )
+            signalBus.logMessage.emit('info', f'导出完成：成功 {success} 个 -> {display_dir}')
         self._exporting = False
         self.export_selected_button.setEnabled(True)
         self.export_all_button.setEnabled(True)

@@ -98,6 +98,16 @@ class SettingView(ScrollArea):
             workspace_group,
         )
         workspace_group.addSettingCard(self.save_path_card)
+
+        # 导出完成后自动打开文件夹（默认关闭：批量导出时不再反复弹出文件夹窗口）
+        self.open_folder_card = SwitchSettingCard(
+            FIF.FOLDER,
+            '导出完成后自动打开文件夹',
+            '关闭时导出完成不再弹出文件夹窗口，改为在右上角通知中显示导出路径',
+            cfg.openFolderAfterExport,
+            workspace_group,
+        )
+        workspace_group.addSettingCard(self.open_folder_card)
         v.addWidget(workspace_group)
 
         # 数据：昵称缓存
