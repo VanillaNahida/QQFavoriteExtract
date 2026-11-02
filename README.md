@@ -105,9 +105,13 @@
 QQFavoriteExtract/
 ├── .github/
 │   ├── workflows/
-│   │   └── build-windows-exe.yml   # GitHub Actions：构建四种格式 exe 并发布 Release
+│   │   ├── test.yml                # 提交 / PR：ruff 检查 + 语法编译 + 导入冒烟测试
+│   │   ├── build-windows-exe.yml   # 手动触发：仅构建 Windows 产物（留作 Actions Artifacts）
+│   │   └── release.yml             # 推送 vX.Y.Z tag：构建 + 生成更新日志 + 发布 Release
+│   ├── scripts/
+│   │   └── changelog.py            # 按 Conventional Commits 生成 Release 更新日志
 │   └── templates/
-│       └── release-notes-tail.md.template  # Release 下载说明模板（构建后自动追加）
+│       └── release-notes-tail.md   # Release 下载说明模板（构建后自动追加）
 ├── src/                          # 源码（Everything is a module）
 │   ├── main.py                   # 程序入口（uv run python -m src.main）
 │   ├── app/                      # 应用层：主窗口、信号总线、主题
@@ -164,7 +168,7 @@ uv run python -m src.main
 
 ### 打包
 
-- **GitHub Actions（推荐）**：推送 `vX.Y.Z` 格式的 tag 即自动构建 PyInstaller 单文件版 + 便携版，按提交信息生成中文更新日志，并创建 Release 挂上产物（详见下方[发版流程](#发版流程)）。普通提交到 `main` 只会构建并留存 Actions Artifacts，不发布 Release。
+- **GitHub Actions（推荐）**：推送 `vX.Y.Z` 格式的 tag 即自动构建 PyInstaller 单文件版 + 便携版，按提交信息生成中文更新日志，并创建 Release 挂上产物（详见下方[发版流程](#发版流程)）。普通提交与 PR 只会跑静态检查与冒烟测试；需要一份临时产物可在 Actions 页面手动触发 `Build Windows EXE (Manual)`。
 
 - **本地 PyInstaller**：
 

@@ -1,15 +1,26 @@
-name: Test Pull Request
+name: Test
 
+# 普通提交与 PR 只做静态检查和冒烟测试，不构建产物（构建见 build-windows-exe.yml / release.yml）
 on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'img/**'
+      - 'LICENSE'
   pull_request:
     types: [opened, synchronize, reopened]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: test-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true  # 同一分支连推多次时取消旧任务
+
 jobs:
   test:
-    if: github.event.pull_request.state == 'open'  # 仅在 PR 处于开启状态时执行测试
     runs-on: windows-latest
     timeout-minutes: 15
 
@@ -25,7 +36,7 @@ jobs:
 
     - name: Install dependencies with uv
       # uv.lock 不被 git 跟踪，CI 检出后不存在，需先 uv lock 生成锁文件再以 frozen 安装
-      # --group dev 安装 ruff 与 pyinstaller（dev 依赖组）
+      # --group dev 安装 ruff（dev 依赖组）
       run: |
         uv lock
         uv sync --frozen --group dev

@@ -1,17 +1,9 @@
-name: Build Windows EXE (Push / Manual)
+name: Build Windows EXE (Manual)
 
-# 日常提交自动构建 Windows 产物，仅作为 Actions Artifacts 留存，不创建 Release。
-# 需要正式发版请打 tag：git tag v1.5.6 && git push origin v1.5.6（由 release.yml 构建并发布）
+# 只为「临时要一份产物」准备：手动触发后构建两个 PyInstaller 产物并上传为 Actions Artifacts。
+# 正式发版请推 tag（git tag v1.5.6 && git push origin v1.5.6），由 release.yml 构建并发布 Release。
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'src/**'
-      - 'img/**'
-      - 'build.py'
-      - 'pyproject.toml'
-      - '.github/workflows/build-windows-exe.yml'
   workflow_dispatch:
     inputs:
       version:
@@ -22,10 +14,6 @@ on:
 
 permissions:
   contents: read
-
-concurrency:
-  group: build-${{ github.ref }}
-  cancel-in-progress: true  # 同一分支的旧构建被新提交取代时直接取消，省 runner 时间
 
 jobs:
   build:
@@ -63,7 +51,6 @@ jobs:
         echo "short_sha=${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"
 
     - name: Build PyInstaller single-file version
-      id: build
       env:
         BUILD_VERSION: ${{ steps.meta.outputs.version }}
       run: |
