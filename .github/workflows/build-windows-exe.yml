@@ -1,23 +1,40 @@
-name: Build Windows EXE on Release
+name: Build Windows EXE (Push / Manual)
+
+# 日常提交自动构建 Windows 产物，仅作为 Actions Artifacts 留存，不创建 Release。
+# 需要正式发版请打 tag：git tag v1.5.6 && git push origin v1.5.6（由 release.yml 构建并发布）
 
 on:
-  release:
-    types: [published]
-  workflow_dispatch:  # 允许手动触发构建
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'img/**'
+      - 'build.py'
+      - 'pyproject.toml'
+      - '.github/workflows/build-windows-exe.yml'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '自定义版本号（不带 v，留空则用 pyproject.toml 里的版本）'
+        required: false
+        default: ''
+        type: string
 
 permissions:
-  contents: write  # 用于上传到 releases
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true  # 同一分支的旧构建被新提交取代时直接取消，省 runner 时间
 
 jobs:
-  build-windows-exe:
+  build:
     runs-on: windows-latest
-    timeout-minutes: 60  # 两种构建（PyInstaller x 单文件/多文件）耗时较长
+    timeout-minutes: 60
 
     steps:
-    - name: Checkout code with tag information
+    - name: Checkout code
       uses: actions/checkout@v4
-      with:
-        fetch-depth: 0  # 获取所有历史记录以便获取标签
 
     - name: Setup uv
       uses: astral-sh/setup-uv@v5
@@ -27,64 +44,43 @@ jobs:
 
     - name: Install dependencies with uv
       # uv.lock 不被 git 跟踪，CI 检出后不存在，需先 uv lock 生成锁文件再以 frozen 安装
-      # --group dev 显式安装 pyinstaller（build 脚本的 PyInstaller 打包器依赖）
       run: |
         uv lock
         uv sync --frozen --extra build --group dev
 
+    - name: Resolve version and short sha
+      id: meta
+      shell: bash
+      env:
+        INPUT_VERSION: ${{ github.event.inputs.version }}
+      run: |
+        VERSION="${INPUT_VERSION:-}"
+        VERSION="${VERSION#v}"
+        if [ -z "$VERSION" ]; then
+          VERSION="$(uv run python -c "import tomllib;print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")"
+        fi
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        echo "short_sha=${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"
+
     - name: Build PyInstaller single-file version
       id: build
-      # build.py 在 CI 中：解析版本（GITHUB_REF 标签）→ 更新 src/__init__.py →
-      # 按参数构建并重命名产物 → 输出 version 到 GITHUB_OUTPUT
+      env:
+        BUILD_VERSION: ${{ steps.meta.outputs.version }}
       run: |
         uv run python build.py --pyinstaller --single
 
     - name: Build PyInstaller portable version
+      env:
+        BUILD_VERSION: ${{ steps.meta.outputs.version }}
       run: |
         uv run python build.py --pyinstaller --multi
 
-    - name: Upload build artifacts
+    - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: QQFavoriteExtract-Windows-${{ steps.build.outputs.version }}
+        name: QQFavoriteExtract-Windows-${{ steps.meta.outputs.version }}-${{ steps.meta.outputs.short_sha }}
         path: |
-          dist/QQFavoriteExtract_${{ steps.build.outputs.version }}_pyinstaller_onefile.exe
-          dist/QQFavoriteExtract_${{ steps.build.outputs.version }}_pyinstaller_portable.zip
-        retention-days: 7
-
-    - name: Upload to GitHub Release
-      if: github.event_name == 'release'  # 仅当发布时上传到 Releases
-      uses: softprops/action-gh-release@v2
-      with:
-        tag_name: ${{ github.ref_name }}
-        generate_release_notes: false
-        draft: false
-        prerelease: false
-        files: |
-          dist/QQFavoriteExtract_${{ steps.build.outputs.version }}_pyinstaller_onefile.exe
-          dist/QQFavoriteExtract_${{ steps.build.outputs.version }}_pyinstaller_portable.zip
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Append download guide to release notes
-      # After the build, append the fixed-format download guide to the Release Note
-      # edited on the web (read current body -> append the template if not yet appended -> write back)
-      if: github.event_name == 'release'
-      shell: bash
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        NOTES_FILE="$(mktemp)"
-        gh release view "${{ github.ref_name }}" --json body --jq .body > "$NOTES_FILE"
-        # Idempotent: skip if the build info marker is already present, avoiding duplicates on reruns
-        if grep -q 'QQFavoriteExtract-BUILD-INFO' "$NOTES_FILE"; then
-          echo "build info already appended, skip"
-          exit 0
-        fi
-        VERSION="${{ steps.build.outputs.version }}"
-        BASE="${{ github.server_url }}/${{ github.repository }}/releases/download/${{ github.ref_name }}"
-        sed -e "s|<版本>|$VERSION|g" \
-            -e "s|{{PYINSTALLER_ONEFILE_URL}}|$BASE/QQFavoriteExtract_${VERSION}_pyinstaller_onefile.exe|g" \
-            -e "s|{{PYINSTALLER_PORTABLE_URL}}|$BASE/QQFavoriteExtract_${VERSION}_pyinstaller_portable.zip|g" \
-            .github/templates/release-notes-tail.md >> "$NOTES_FILE"
-        gh release edit "${{ github.ref_name }}" --notes-file "$NOTES_FILE"
+          dist/QQFavoriteExtract_${{ steps.meta.outputs.version }}_pyinstaller_onefile.exe
+          dist/QQFavoriteExtract_${{ steps.meta.outputs.version }}_pyinstaller_portable.zip
+        if-no-files-found: error
+        retention-days: 30

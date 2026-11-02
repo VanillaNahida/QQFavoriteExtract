@@ -164,7 +164,7 @@ uv run python -m src.main
 
 ### 打包
 
-- **GitHub Actions（推荐）**：推送 `vX.Y.Z` 格式的 tag 后自动构建 Nuitka / PyInstaller 四种产物并上传 Release，同时自动在 Release Note 末尾追加下载说明。
+- **GitHub Actions（推荐）**：推送 `vX.Y.Z` 格式的 tag 即自动构建 PyInstaller 单文件版 + 便携版，按提交信息生成中文更新日志，并创建 Release 挂上产物（详见下方[发版流程](#发版流程)）。普通提交到 `main` 只会构建并留存 Actions Artifacts，不发布 Release。
 
 - **本地 PyInstaller**：
 
@@ -207,6 +207,35 @@ uv run python -m src.main
     --multi               仅打包多文件版
     --both                同时打包单文件与多文件版（默认）
   ```
+
+### 发版流程
+
+自动化流水线定义在 `.github/workflows/release.yml`，无需手动上传产物。
+
+1. 更新 `pyproject.toml` 里的 `version`（与要发的 tag 保持一致，否则 CI 会给出警告）。
+2. 提交改动后打 tag 并推送：
+
+   ```bash
+   git tag v1.5.6
+   git push origin v1.5.6
+   ```
+
+3. Actions 会自动完成：构建 PyInstaller 单文件版 / 便携版 → 生成更新日志 → 创建 Release（标题即 tag 名）并挂上两个产物。
+
+也可以在 Actions 页面手动触发 `Release (Auto Build & Publish)`，填入版本号即可（无需先建 tag），并可选择创建为草稿 Release。
+
+更新日志由 `.github/scripts/changelog.py` 生成，规则如下：
+
+- 取「上一个版本 tag..本次 tag」之间的提交（`--no-merges`），跳过版本号提交。
+- 按 [Conventional Commits](https://www.conventionalcommits.org/) 前缀归类为中文小节：`feat` 新功能、`fix` 问题修复、`perf` 性能优化、`refactor` 重构、`style` 样式调整、`docs` 文档、`test` 测试、`build`/`ci` 构建 / CI、`revert` 回滚，其余进「其他改动」，`!` 或 `BREAKING CHANGE` 置顶为「破坏性变更」。
+
+所以提交信息请写成 `feat: 新增某某功能`、`fix(ui): 修复某某问题` 的形式，日志才好看。
+
+本地预览某次发版的更新日志（需已存在对应 tag）：
+
+```bash
+uv run python .github/scripts/changelog.py --to v1.5.5 --repo VanillaNahida/QQFavoriteExtract
+```
 
 ### 开发约定
 

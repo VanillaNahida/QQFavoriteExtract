@@ -163,7 +163,8 @@ def run_newbie_tutorial(window, on_finished=None):
                      TeachingTipTailPosition.TOP),
         TutorialStep(ws.preview_card, '预览区',
                      '右键可排序与快捷多选；按住 Ctrl 点击可挑选多个表情，'
-                     'Ctrl+A 全选已加载、Ctrl+D 清空选择；单击打开详情面板（默认关闭），按 Space 键（空格键）可展开或收起详情面板。双击打开大图窗口。'
+                     'Ctrl+A 全选已加载、Ctrl+D 清空选择；单击打开详情面板（默认关闭），'
+                     '按 Space 键（空格键）可展开或收起详情面板。双击打开大图窗口。'
                      '您可在「设置 - 个性化」中的「选中表情时自动展开」选项调整该行为。',
                      TeachingTipTailPosition.BOTTOM),
         TutorialStep(ws.detail_toggle_button, '展开 / 收起表情详细面板',
